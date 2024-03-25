@@ -1,0 +1,1059 @@
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: cp4ba-cloud-pak-deployer
+  annotations:
+spec:
+  params:
+    - name: ibm-entitlement-key
+      type: string
+      description: The IBM entitlement key with permissions for pulling cp4ba images
+      default: "false"
+    - name: universal-password
+      type: string
+      description: Universal password to be used for access. Is generated if not provided.
+      default: ""
+    - name: cp4ba-project
+      type: string
+      description: Namespace for CP4BA deployment
+      default: "cp4ba"
+    - name: cp4ba-collateral-project
+      type: string
+      description: Namespace for CP4BA collateral deployment (prerequisites and extras)
+      default: "cp4ba-collateral"
+    - name: cp4ba-state
+      type: string
+      description: |
+        Should CP4BA be installed or removed?
+        {
+          "options": [
+            {"text": "Installed","value": "installed", "default": "true"},
+            {"text": "Removed","value": "removed" }
+          ]
+        }
+      default: "installed"
+    - name: cpfs-profile-size
+      type: string
+      description: |
+        What profile size do you want for CPFS instance?
+        {
+          "options": [
+            {"text": "Small","value": "small", "default": "true"},
+            {"text": "Medium","value": "medium" },
+            {"text": "Large","value": "large" }
+          ]
+        }
+      default: "small"
+    - name: cp4ba-profile-size
+      type: string
+      description: |
+        What profile size do you want for CP4BA instance?
+        {
+          "options": [
+            {"text": "Small","value": "small", "default": "true"},
+            {"text": "Medium","value": "medium" },
+            {"text": "Large","value": "large" }
+          ]
+        }
+      default: "small"
+    - name: bas-enabled
+      type: string
+      description: |
+        Business Automation Studio Optional Component of Foundation Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: bai-enabled
+      type: string
+      description: |
+        Business Automation Insights Optional Component of Foundation Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: ae-enabled
+      type: string
+      description: |
+        Application Engine Optional Component of Foundation Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: decisions-enabled
+      type: string
+      description: |
+        Operation Decision Manager pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: decision-center-enabled
+      type: string
+      description: |
+        Decison Center Optional Component of Operation Decision Manager Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"      
+    - name: decision-runner-enabled
+      type: string
+      description: |
+        Decison Runner Optional Component of Operation Decision Manager Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"      
+    - name: decision-server-runtime-enabled
+      type: string
+      description: |
+        Decison Server Optional Component of Operation Decision Manager Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"     
+    - name: decisions-ads-enabled
+      type: string
+      description: |
+        Automation Decision Services pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: ads-designer-enabled
+      type: string
+      description: |
+        ADS Designer Optional Component of Automation Decision Services Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"           
+    - name: ads-runtime-enabled
+      type: string
+      description: |
+        ADS Runtime Optional Component of Automation Decision Services Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: content-enabled
+      type: string
+      description: |
+        FileNet Content Manager pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: cmis-enabled
+      type: string
+      description: |
+        Content Management Interoperability Services Optional Component of FileNet Content Manager Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"         
+    - name: css-enabled
+      type: string
+      description: |
+        Content Search Services Optional Component of FileNet Content Manager Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"         
+    - name: es-enabled
+      type: string
+      description: |
+        External Share Optional Component of FileNet Content Manager Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"         
+    - name: tm-enabled
+      type: string
+      description: |
+        Task Manager Optional Component of FileNet Content Manager Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"         
+    - name: ier-enabled
+      type: string
+      description: |
+        Enterprise Records Optional Component of FileNet Content Manager Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"         
+    - name: icc4sap-enabled
+      type: string
+      description: |
+        Content Collector for SAP Optional Component of FileNet Content Manager Pattern enabled?
+        {
+          "options": [
+            {"text": "false","value": "false", "default": "true"}
+          ]
+        }
+      default: "false"     
+    - name: application-enabled
+      type: string
+      description: |
+        Business Automation Application pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: app-designer-enabled
+      type: string
+      description: |
+        Application Designer Optional Component of Business Automation Application Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"            
+    - name: ae-data-persistence-enabled
+      type: string
+      description: |
+        Application Engine data persistence Optional Component of Business Automation Application Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"        
+    - name: document-processing-enabled
+      type: string
+      description: |
+        Automation Document Processing pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: document-processing-designer-enabled
+      type: string
+      description: |
+        Designer Optional Component of Automation Document Processing Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: workflow-enabled
+      type: string
+      description: |
+        Business Automation Workflow pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: baw-authoring-enabled
+      type: string
+      description: |
+        Workflow Authoring Optional Component of Business Automation Workflow Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: kafka-enabled
+      type: string
+      description: |
+        Exposed Kafka Service Optional Component of Business Automation Workflow Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: pm-enabled
+      type: string
+      description: |
+        Process Mining enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: rpa-enabled
+      type: string
+      description: |
+        Robotic Process Automation enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: cloudbeaver-enabled
+      type: string
+      description: |
+        CloudBeaver enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: roundcube-enabled
+      type: string
+      description: |
+        Roundcube enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: cerebro-enabled
+      type: string
+      description: |
+        Cerebro enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: akhq-enabled
+      type: string
+      description: |
+        AKHQ enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: mongo-express-enabled
+      type: string
+      description: |
+        Mongo Express enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: phpldapadmin-enabled
+      type: string
+      description: |
+        PHPLDAPAdmin enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: custom-build-git
+      type: string
+      description: If you want to use CPDeployer image from custom public Git repo - provide git repo https url
+      default: "false"
+    - name: custom-build-ref
+      type: string
+      description: If you want to use CPDeployer image from custom public Git repo - provide git repo ref
+      default: "false"
+    - name: custom-build-storage-class
+      type: string
+      description: If you want to use CPDeployer image from custom public Git repo - provide storage class name for persistence
+      default: "false"        
+  finally:
+    - name: update-configmap-failure
+      when:
+        - input: $(tasks.run-the-deployer.status)
+          operator: in
+          values: ["Failed"]
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      params:
+        - name: SCRIPT
+          value: |
+            oc patch configmap/pipeline-output -p '{"data":{"Status":"Pipeline run failed. See Pipeline run for more details and consider running the pipeline again."}}'
+    - name: update-configmap-failure
+      when:
+        - input: $(tasks.run-the-deployer-with-custom-image.status)
+          operator: in
+          values: ["Failed"]
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      params:
+        - name: SCRIPT
+          value: |
+            oc patch configmap/pipeline-output -p '{"data":{"Status":"Pipeline run failed. See Pipeline run for more details and consider running the pipeline again."}}'
+    - name: update-configmap-failure
+      when:
+        - input: $(tasks.deploy-client-onboarding.status)
+          operator: in
+          values: ["Failed"]
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      params:
+        - name: SCRIPT
+          value: |
+            oc patch configmap/pipeline-output -p '{"data":{"Status":"Pipeline run failed. See Pipeline run for more details and consider running the pipeline again."}}'
+    - name: update-configmap-success
+      when:
+        - input: $(tasks.deploy-client-onboarding.status)
+          operator: in
+          values: ["Succeeded"]
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      params:
+        - name: SCRIPT
+          value: |
+            oc patch configmap/pipeline-output -p "{\"data\":{\"Status\":\"Pipeline run Successful, see configmap $(params.cp4ba-project)-usage in cloud-pak-deployer Project for available Routes and credentials. Also Client Onbaording has been deployed, details at TODO github page\"}}"
+  tasks:
+    - name: add-namespace
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF 
+            apiVersion: v1
+            kind: Namespace
+            metadata:
+              creationTimestamp: null
+              name: cloud-pak-deployer
+            EOF
+    - name: add-sa
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      runAfter:
+        - add-namespace
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF 
+            apiVersion: v1
+            kind: ServiceAccount
+            metadata:
+              name: cloud-pak-deployer-sa
+              namespace: cloud-pak-deployer
+            EOF
+    - name: add-sa-permissions
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      runAfter:
+        - add-sa
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF 
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: RoleBinding
+            metadata:
+              name: system:openshift:scc:privileged
+              namespace: cloud-pak-deployer
+            roleRef:
+              apiGroup: rbac.authorization.k8s.io
+              kind: ClusterRole
+              name: system:openshift:scc:privileged
+            subjects:
+            - kind: ServiceAccount
+              name: cloud-pak-deployer-sa
+              namespace: cloud-pak-deployer
+            EOF
+    - name: bind-sa-permissions
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      runAfter:
+        - add-sa-permissions
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF 
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: ClusterRoleBinding
+            metadata:
+              name: cloud-pak-deployer-cluster-admin
+            roleRef:
+              apiGroup: rbac.authorization.k8s.io
+              kind: ClusterRole
+              name: cluster-admin
+            subjects:
+            - kind: ServiceAccount
+              name: cloud-pak-deployer-sa
+              namespace: cloud-pak-deployer
+            EOF
+    - name: get-tz-ibm-entitlement-key
+      retries: 3
+      params:
+        - name: KEY_ID
+          value: 968d7819-f2c5-7b67-c420-3c6bfd51521e
+        - name: SECRETS_MANAGER_ENDPOINT_URL
+          value: >-
+            https://afa20521-cd75-4864-843f-e59fd0ffd49d.us-south.secrets-manager.appdomain.cloud
+      taskRef:
+        kind: Task
+        name: ibmcloud-secrets-manager-get
+      runAfter:
+        - bind-sa-permissions
+    - name: assign-ibm-entitlement-key
+      retries: 3
+      params:
+        - name: ibm-entitlement-key
+          value: "$(params.ibm-entitlement-key)"
+        - name: tz-ibm-entitlement-key
+          value: "$(tasks.get-tz-ibm-entitlement-key.results.secret-value)"
+      taskSpec:
+        params:
+          - name: ibm-entitlement-key
+            type: string
+            description: user provided ibm-entitlement-key
+          - name: tz-ibm-entitlement-key
+            type: string
+            description: user provided ibm-entitlement-key
+        results:
+          - name: key
+            description: The key to use for the secret
+            type: string
+        steps:
+          - image: podman
+            securityContext:
+              capabilities:
+                add: ["SETFCAP"]
+            script: |
+              if [ "$(params.ibm-entitlement-key)" != "false" ]; then
+                echo "user provided key - $(params.ibm-entitlement-key)"
+                printf "$(params.ibm-entitlement-key)" | tee $(results.key.path)
+
+                echo "testing key for cp.icr.io"
+                podman login cp.icr.io --username cp --password $(params.ibm-entitlement-key)
+              else
+                echo "techzone key - $(params.tz-ibm-entitlement-key)"
+                printf "$(params.tz-ibm-entitlement-key)" | tee $(results.key.path)
+              fi
+      runAfter:
+        - get-tz-ibm-entitlement-key
+    - name: create-entitlement-key-secret
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      runAfter:
+        - assign-ibm-entitlement-key
+      retries: 3
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: cloud-pak-entitlement-key
+              namespace: cloud-pak-deployer
+            type: Opaque
+            stringData:
+              cp-entitlement-key: |
+                $(tasks.assign-ibm-entitlement-key.results.key)
+            EOF
+    - name: configure-cloud-paks-services
+      runAfter:
+        - create-entitlement-key-secret
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF
+            apiVersion: v1
+            kind: ConfigMap
+            metadata:
+              name: cloud-pak-deployer-config
+              namespace: cloud-pak-deployer
+            data:
+              cpd-config.yaml: |
+                global_config:
+                  cloud_platform: existing-ocp
+                  env_id: cp4ba
+                  environment_name: cp4ba
+                  universal_password: '$(params.universal-password)'
+
+                openshift:
+                - cluster_name: "{{ env_id }}"
+                  domain_name: example.com
+                  name: "{{ env_id }}"
+                  ocp_version: "4.14"
+                  console_banner: "{{ env_id }}"
+                  openshift_storage:
+                  - storage_name: auto-storage
+                    storage_type: auto
+
+                cp4ba:
+                - project: $(params.cp4ba-project)
+                  collateral_project: $(params.cp4ba-collateral-project)
+                  openshift_cluster_name: "{{ env_id }}"
+                  openshift_storage_name: auto-storage
+                  accept_licenses: true
+                  state: $(params.cp4ba-state)
+                  cpfs_profile_size: $(params.cpfs-profile-size) # Profile size which affect replicas and resources of Pods of CPFS as per https://www.ibm.com/docs/en/cpfs?topic=operator-hardware-requirements-recommendations-foundational-services
+
+                  # Section for Cloud Pak for Business Automation itself
+                  cp4ba:
+                    # Set to false if you don't want to install (or remove) CP4BA
+                    enabled: true # Currently always true
+                    profile_size: $(params.cp4ba-profile-size) # Profile size which affect replicas and resources of Pods as per https://www.ibm.com/docs/en/cloud-paks/cp-biz-automation/latest?topic=pcmppd-system-requirements
+                    patterns:
+                      foundation: # Foundation pattern, always true - https://www.ibm.com/docs/en/cloud-paks/cp-biz-automation/22.0.2?topic=deployment-capabilities-production-deployments#concept_c2l_1ks_fnb__foundation
+                        optional_components:
+                          bas: $(params.bas-enabled) # Business Automation Studio (BAS) 
+                          bai: $(params.bai-enabled) # Business Automation Insights (BAI)
+                          ae: $(params.ae-enabled) # Application Engine (AE)
+                      decisions: # Operational Decision Manager (ODM) - https://www.ibm.com/docs/en/cloud-paks/cp-biz-automation/22.0.2?topic=deployment-capabilities-production-deployments#concept_c2l_1ks_fnb__odm
+                        enabled: $(params.decisions-enabled)
+                        optional_components:
+                          decision_center: $(params.decision-center-enabled) # Decison Center (ODM)
+                          decision_runner: $(params.decision-runner-enabled) # Decison Runner (ODM)
+                          decision_server_runtime: $(params.decision-server-runtime-enabled) # Decison Server (ODM)
+                        # Additional customization for Operational Decision Management
+                        # Contents of the following will be merged into ODM part of CP4BA CR yaml file. Arrays are overwritten.
+                        cr_custom:
+                          spec:
+                            odm_configuration:
+                              decisionCenter:
+                                # Enable support for decision models
+                                disabledDecisionModel: false
+                      decisions_ads: # Automation Decision Services (ADS) - https://www.ibm.com/docs/en/cloud-paks/cp-biz-automation/22.0.2?topic=deployment-capabilities-production-deployments#concept_c2l_1ks_fnb__ads
+                        enabled: $(params.decisions-ads-enabled)
+                        optional_components:
+                          ads_designer: $(params.ads-designer-enabled) # Designer (ADS)
+                          ads_runtime: $(params.ads-runtime-enabled) # Runtime (ADS)
+                      content: # FileNet Content Manager (FNCM) - https://www.ibm.com/docs/en/cloud-paks/cp-biz-automation/22.0.2?topic=deployment-capabilities-production-deployments#concept_c2l_1ks_fnb__ecm
+                        enabled: $(params.content-enabled)
+                        optional_components:
+                          cmis: $(params.cmis-enabled) # Content Management Interoperability Services (FNCM - CMIS)
+                          css: $(params.css-enabled) # Content Search Services (FNCM - CSS)
+                          es: $(params.es-enabled) # External Share (FNCM - ES)
+                          tm: $(params.tm-enabled) # Task Manager (FNCM - TM)
+                          ier: $(params.ier-enabled) # IBM Enterprise Records (FNCM - IER)
+                          icc4sap: $(params.icc4sap-enabled) # IBM Content Collector for SAP (FNCM - ICC4SAP) - Currently not implemented
+                      application: # Business Automation Application (BAA) - https://www.ibm.com/docs/en/cloud-paks/cp-biz-automation/22.0.2?topic=deployment-capabilities-production-deployments#concept_c2l_1ks_fnb__baa
+                        enabled: $(params.application-enabled)
+                        optional_components:
+                          app_designer: $(params.app-designer-enabled) # App Designer (BAA)
+                          ae_data_persistence: $(params.ae-data-persistence-enabled) # App Engine data persistence (BAA)
+                      document_processing: # Automation Document Processing (ADP) - https://www.ibm.com/docs/en/cloud-paks/cp-biz-automation/22.0.2?topic=deployment-capabilities-production-deployments#concept_c2l_1ks_fnb__adp
+                        enabled: $(params.document-processing-enabled)
+                        optional_components: 
+                          document_processing_designer: $(params.document-processing-designer-enabled) # Designer (ADP)
+                        # Additional customization for Automation Document Processing
+                        # Contents of the following will be merged into ADP part of CP4BA CR yaml file. Arrays are overwritten.
+                        cr_custom:
+                          spec:
+                            ca_configuration:
+                              # GPU config as described on https://www.ibm.com/docs/en/cloud-paks/cp-biz-automation/22.0.1?topic=resource-configuring-document-processing
+                              deeplearning:
+                                gpu_enabled: false
+                                nodelabel_key: nvidia.com/gpu.present
+                                nodelabel_value: "true"
+                              ocrextraction:
+                                use_iocr: all # Allowed values: "none" to uninstall, "all" or "auto" to install (these are aliases)
+                      workflow: # Business Automation Workflow (BAW) - https://www.ibm.com/docs/en/cloud-paks/cp-biz-automation/22.0.1?topic=deployment-capabilities-production-deployments#concept_c2l_1ks_fnb__baw
+                        enabled: $(params.workflow-enabled)
+                        optional_components:
+                          baw_authoring: $(params.baw-authoring-enabled) # Workflow Authoring (BAW) - always keep true if workflow pattern is chosen. BAW Runtime is not implemented.
+                          kafka: $(params.kafka-enabled) # Will install a kafka cluster and enable kafka service for workflow authoring.
+
+                  # Section for IBM Process mining
+                  pm:
+                    # Set to false if you don't want to install (or remove) Process Mining
+                    enabled: $(params.pm-enabled)
+                    # Additional customization for Process Mining
+                    # Contents of the following will be merged into PM CR yaml file. Arrays are overwritten.
+                    cr_custom:
+                      spec:
+                        processmining:
+                          storage:
+                            # Disables redis to spare resources as per https://www.ibm.com/docs/en/process-mining/1.13.2?topic=configurations-custom-resource-definition
+                            redis:
+                              install: false  
+
+                  # Section for IBM Robotic Process Automation
+                  rpa:
+                    # Set to false if you don't want to install (or remove) RPA
+                    enabled: $(params.rpa-enabled)
+                    # Additional customization for Robotic Process Automation
+                    # Contents of the following will be merged into RPA CR yaml file. Arrays are overwritten.
+                    cr_custom:
+                      spec:
+                        # Configures the NLP provider component of IBM RPA. You can disable it by specifying 0. https://www.ibm.com/docs/en/rpa/21.0?topic=platform-configuring-rpa-custom-resources#basic-setup
+                        nlp:
+                          replicas: 1
+
+                  # Set to false if you don't want to install (or remove) CloudBeaver (PostgreSQL, DB2, MSSQL UI)
+                  cloudbeaver_enabled: $(params.cloudbeaver-enabled)
+
+                  # Set to false if you don't want to install (or remove) Roundcube
+                  roundcube_enabled: $(params.roundcube-enabled)
+
+                  # Set to false if you don't want to install (or remove) Cerebro
+                  cerebro_enabled: $(params.cerebro-enabled)
+
+                  # Set to false if you don't want to install (or remove) AKHQ
+                  akhq_enabled: $(params.akhq-enabled)
+
+                  # Set to false if you don't want to install (or remove) Mongo Express
+                  mongo_express_enabled: $(params.mongo-express-enabled)
+
+                  # Set to false if you don't want to install (or remove) phpLDAPAdmin
+                  phpldapadmin_enabled: $(params.phpldapadmin-enabled)
+            EOF
+    - name: build-custom-image
+      when:
+        - input: $(params.custom-build-git)
+          operator: notin
+          values: ["false"]
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      timeout: 0h30m0s
+      retries: 3
+      runAfter:
+        - configure-cloud-paks-services
+      params:
+        - name: SCRIPT
+          value: |
+            oc delete job cloud-pak-deployer -n cloud-pak-deployer --ignore-not-found
+            oc delete pvc cloud-pak-deployer-status -n cloud-pak-deployer --ignore-not-found
+            oc delete imagestream cloud-pak-deployer -n cloud-pak-deployer --ignore-not-found
+            oc delete build --all -n cloud-pak-deployer --ignore-not-found
+
+            oc apply -f - <<EOF
+            apiVersion: v1
+            kind: PersistentVolumeClaim
+            metadata:
+              name: cloud-pak-deployer-status
+              namespace: cloud-pak-deployer
+            spec:
+              accessModes:
+                - ReadWriteMany
+              resources:
+                requests:
+                  storage: 10Gi
+              storageClassName: $(params.custom-build-storage-class)
+            EOF
+
+            oc apply -f - <<EOF
+            apiVersion: image.openshift.io/v1
+            kind: ImageStream
+            metadata:
+              name: cloud-pak-deployer
+              namespace: cloud-pak-deployer
+            spec:
+              lookupPolicy:
+                local: true
+            EOF
+
+            oc create -f - <<EOF
+            kind: Build
+            apiVersion: build.openshift.io/v1
+            metadata:
+              generateName: cloud-pak-deployer-bc-
+              namespace: cloud-pak-deployer
+              labels:
+                app: cloud-pak-deployer
+            spec:
+              serviceAccount: builder
+              source:
+                type: Git
+                git:
+                  uri: $(params.custom-build-git)
+                  ref: $(params.custom-build-ref)
+              strategy:
+                type: Docker
+                dockerStrategy:
+                  buildArgs:
+                    - name: "CPD_OLM_UTILS_V1_IMAGE"
+                      value: "icr.io/cpopen/cpd/olm-utils:latest"
+                    - name: "CPD_OLM_UTILS_V2_IMAGE"
+                      value: "icr.io/cpopen/cpd/olm-utils-v2:latest"
+              output:
+                to:
+                  kind: ImageStreamTag
+                  name: 'cloud-pak-deployer:latest'
+              triggeredBy:
+                - message: Manually triggered
+            EOF
+
+            oc wait build -l app=cloud-pak-deployer --for condition=Complete -n cloud-pak-deployer --timeout=10m
+    - name: run-the-deployer-with-custom-image
+      when:
+        - input: $(params.custom-build-git)
+          operator: notin
+          values: ["false"]  
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      timeout: 7h0m0s
+      retries: 3
+      runAfter:
+        - build-custom-image
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF
+            apiVersion: batch/v1
+            kind: Job
+            metadata:
+              labels:
+                app: cloud-pak-deployer
+              name: cloud-pak-deployer
+              namespace: cloud-pak-deployer
+            spec:
+              parallelism: 1
+              completions: 1
+              backoffLimit: 0
+              template:
+                metadata:
+                  name: cloud-pak-deployer
+                  labels:
+                    app: cloud-pak-deployer
+                spec:
+                  containers:
+                  - name: cloud-pak-deployer
+                    image: cloud-pak-deployer:latest
+                    imagePullPolicy: Always
+                    terminationMessagePath: /dev/termination-log
+                    terminationMessagePolicy: File
+                    env:
+                    - name: CONFIG_DIR
+                      value: /Data/cpd-config
+                    - name: STATUS_DIR
+                      value: /Data/cpd-status
+                    - name: CP_ENTITLEMENT_KEY
+                      valueFrom:
+                        secretKeyRef:
+                          key: cp-entitlement-key
+                          name: cloud-pak-entitlement-key
+                    volumeMounts:
+                    - name: config-volume
+                      mountPath: /Data/cpd-config/config
+                    - name: status-volume
+                      mountPath: /Data/cpd-status
+                    command: ["/bin/sh","-xc"]
+                    args: 
+                      - /cloud-pak-deployer/cp-deploy.sh env apply -v
+                  restartPolicy: Never
+                  securityContext:
+                    runAsUser: 0
+                  serviceAccountName: cloud-pak-deployer-sa
+                  volumes:
+                  - name: config-volume
+                    configMap:
+                      name: cloud-pak-deployer-config
+                  - name: status-volume
+                    persistentVolumeClaim:
+                      claimName: cloud-pak-deployer-status
+            EOF
+
+            sleep 30
+
+            while true
+            do
+              is_complete=$(oc get -n cloud-pak-deployer job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Complete") | contains({"status": "'True'"})')
+              if [[ $is_complete != "true" ]]; then
+                echo "Waiting for job to be Complete. See cloud-pak-deployer pod's logs in project cloud-pak-deployer for more details."
+              else
+                echo "Cloud Pak Deployer job is Complete."
+                break
+              fi
+
+              did_fail=$(oc get -n cloud-pak-deployer job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | contains({"status": "'True'"})')
+              if [[ $did_fail == "true" ]]; then
+                echo "Cloud Pak Deployer job failed."
+                echo $(oc get -n cloud-pak-deployer job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .reason')
+                echo $(oc get -n cloud-pak-deployer job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .message')
+                exit 68
+              fi
+              
+              sleep 60
+            done
+    - name: run-the-deployer
+      when:
+        - input: $(params.custom-build-git)
+          operator: in
+          values: ["false"]
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      timeout: 7h0m0s
+      retries: 3
+      runAfter:
+        - run-the-deployer-with-custom-image
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF
+            apiVersion: v1
+            kind: Pod
+            metadata:
+              labels:
+                app: cloud-pak-deployer-start
+              generateName: cloud-pak-deployer-start-
+              namespace: cloud-pak-deployer
+            spec:
+              containers:
+              - name: cloud-pak-deployer
+                image: quay.io/cloud-pak-deployer/cloud-pak-deployer:latest
+                imagePullPolicy: Always
+                terminationMessagePath: /dev/termination-log
+                terminationMessagePolicy: File
+                command: ["/bin/sh","-xc"]
+                args: 
+                  - /cloud-pak-deployer/scripts/deployer/cpd-start-deployer.sh
+              restartPolicy: Never
+              securityContext:
+                runAsUser: 0
+              serviceAccountName: cloud-pak-deployer-sa
+            EOF
+
+            sleep 30
+
+            while true
+            do
+              is_complete=$(oc get -n cloud-pak-deployer job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Complete") | contains({"status": "'True'"})')
+              if [[ $is_complete != "true" ]]; then
+                echo "Waiting for job to be Complete. See cloud-pak-deployer pod's logs in project cloud-pak-deployer for more details."
+              else
+                echo "Cloud Pak Deployer job is Complete."
+                break
+              fi
+
+              did_fail=$(oc get -n cloud-pak-deployer job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | contains({"status": "'True'"})')
+              if [[ $did_fail == "true" ]]; then
+                echo "Cloud Pak Deployer job failed."
+                echo $(oc get -n cloud-pak-deployer job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .reason')
+                echo $(oc get -n cloud-pak-deployer job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .message')
+                exit 68
+              fi
+              
+              sleep 60
+            done
+    - name: deploy-client-onboarding
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      timeout: 1h0m0s
+      retries: 3
+      runAfter:
+        - run-the-deployer
+      params:
+        - name: SCRIPT
+          value: |
+            TODO all OC resources needed
+            oc apply -f - <<EOF
+            apiVersion: batch/v1
+            TODO Job content
+            EOF
+
+            sleep 30
+
+            TODO adjust projects to wait on
+            while true
+            do
+              is_complete=$(oc get -n cloud-pak-deployer job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Complete") | contains({"status": "'True'"})')
+              if [[ $is_complete != "true" ]]; then
+                echo "Waiting for job to be Complete. See cloud-pak-deployer pod's logs in project cloud-pak-deployer for more details."
+              else
+                echo "Cloud Pak Deployer job is Complete."
+                break
+              fi
+
+              did_fail=$(oc get -n cloud-pak-deployer job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | contains({"status": "'True'"})')
+              if [[ $did_fail == "true" ]]; then
+                echo "Cloud Pak Deployer job failed."
+                echo $(oc get -n cloud-pak-deployer job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .reason')
+                echo $(oc get -n cloud-pak-deployer job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .message')
+                exit 68
+              fi
+              
+              sleep 60
+            done

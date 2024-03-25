@@ -1,0 +1,16 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: cp4ba-cloud-pak-deployer-custom-git-run-
+spec:
+  timeouts:
+    pipeline: 7h0m0s
+  pipelineRef:
+    name: cp4ba-cloud-pak-deployer-custom-git
+  params:
+    - name: custom-build-git
+      value: "https://github.com/IBM/cloud-pak-deployer"
+    - name: custom-build-ref
+      value: "cp4ba-2024-03-22"
+    - name: custom-build-storage-class
+      value: "ocs-storagecluster-cephfs"
