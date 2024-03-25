@@ -2,10 +2,22 @@
 apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
-  name: cp4ba-cloud-pak-deployer
+  name: cp4ba-cloud-pak-deployer-custom-git
   annotations:
 spec:
   params:
+    - name: custom-build-git
+      type: string
+      description: If you want to use CPDeployer image from custom public Git repo - provide git repo https url
+      default: "false"
+    - name: custom-build-ref
+      type: string
+      description: If you want to use CPDeployer image from custom public Git repo - provide git repo ref
+      default: "false"
+    - name: custom-build-storage-class
+      type: string
+      description: If you want to use CPDeployer image from custom public Git repo - provide storage class name for persistence
+      default: "false"  
     - name: ibm-entitlement-key
       type: string
       description: The IBM entitlement key with permissions for pulling cp4ba images
@@ -418,11 +430,11 @@ spec:
             {"text": "false","value": "false" }
           ]
         }
-      default: "true"       
+      default: "true"     
   finally:
     - name: update-configmap-failure
       when:
-        - input: $(tasks.run-the-deployer.status)
+        - input: $(tasks.run-the-deployer-with-custom-image.status)
           operator: in
           values: ["Failed"]
       taskRef:
@@ -434,7 +446,7 @@ spec:
             oc patch configmap/pipeline-output -p '{"data":{"Status":"Pipeline run failed. See Pipeline run for more details and consider running the pipeline again."}}'
     - name: update-configmap-success
       when:
-        - input: $(tasks.run-the-deployer.status)
+        - input: $(tasks.run-the-deployer-with-custom-image.status)
           operator: in
           values: ["Succeeded"]
       taskRef:
@@ -750,39 +762,143 @@ spec:
                   # Set to false if you don't want to install (or remove) phpLDAPAdmin
                   phpldapadmin_enabled: $(params.phpldapadmin-enabled)
             EOF
-    - name: run-the-deployer
+    - name: build-custom-image
       taskRef:
         kind: Task
         name: ibm-pak
-      timeout: 7h0m0s
+      timeout: 0h30m0s
       retries: 3
       runAfter:
         - configure-cloud-paks-services
       params:
         - name: SCRIPT
           value: |
+            oc delete job cloud-pak-deployer -n cloud-pak-deployer --ignore-not-found
+            oc delete imagestream cloud-pak-deployer -n cloud-pak-deployer --ignore-not-found
+            oc delete build --all -n cloud-pak-deployer --ignore-not-found
+
             oc apply -f - <<EOF
             apiVersion: v1
-            kind: Pod
+            kind: PersistentVolumeClaim
             metadata:
-              labels:
-                app: cloud-pak-deployer-start
-              generateName: cloud-pak-deployer-start-
+              name: cloud-pak-deployer-status
               namespace: cloud-pak-deployer
             spec:
-              containers:
-              - name: cloud-pak-deployer
-                image: quay.io/cloud-pak-deployer/cloud-pak-deployer:latest
-                imagePullPolicy: Always
-                terminationMessagePath: /dev/termination-log
-                terminationMessagePolicy: File
-                command: ["/bin/sh","-xc"]
-                args: 
-                  - /cloud-pak-deployer/scripts/deployer/cpd-start-deployer.sh
-              restartPolicy: Never
-              securityContext:
-                runAsUser: 0
-              serviceAccountName: cloud-pak-deployer-sa
+              accessModes:
+                - ReadWriteMany
+              resources:
+                requests:
+                  storage: 10Gi
+              storageClassName: $(params.custom-build-storage-class)
+            EOF
+
+            oc apply -f - <<EOF
+            apiVersion: image.openshift.io/v1
+            kind: ImageStream
+            metadata:
+              name: cloud-pak-deployer
+              namespace: cloud-pak-deployer
+            spec:
+              lookupPolicy:
+                local: true
+            EOF
+
+            oc create -f - <<EOF
+            kind: Build
+            apiVersion: build.openshift.io/v1
+            metadata:
+              generateName: cloud-pak-deployer-bc-
+              namespace: cloud-pak-deployer
+              labels:
+                app: cloud-pak-deployer
+            spec:
+              serviceAccount: builder
+              source:
+                type: Git
+                git:
+                  uri: $(params.custom-build-git)
+                  ref: $(params.custom-build-ref)
+              strategy:
+                type: Docker
+                dockerStrategy:
+                  buildArgs:
+                    - name: "CPD_OLM_UTILS_V1_IMAGE"
+                      value: "icr.io/cpopen/cpd/olm-utils:latest"
+                    - name: "CPD_OLM_UTILS_V2_IMAGE"
+                      value: "icr.io/cpopen/cpd/olm-utils-v2:latest"
+              output:
+                to:
+                  kind: ImageStreamTag
+                  name: 'cloud-pak-deployer:latest'
+              triggeredBy:
+                - message: Manually triggered
+            EOF
+
+            oc wait build -l app=cloud-pak-deployer --for condition=Complete -n cloud-pak-deployer --timeout=10m
+    - name: run-the-deployer-with-custom-image
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      timeout: 7h0m0s
+      retries: 3
+      runAfter:
+        - build-custom-image
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF
+            apiVersion: batch/v1
+            kind: Job
+            metadata:
+              labels:
+                app: cloud-pak-deployer
+              name: cloud-pak-deployer
+              namespace: cloud-pak-deployer
+            spec:
+              parallelism: 1
+              completions: 1
+              backoffLimit: 0
+              template:
+                metadata:
+                  name: cloud-pak-deployer
+                  labels:
+                    app: cloud-pak-deployer
+                spec:
+                  containers:
+                  - name: cloud-pak-deployer
+                    image: cloud-pak-deployer:latest
+                    imagePullPolicy: Always
+                    terminationMessagePath: /dev/termination-log
+                    terminationMessagePolicy: File
+                    env:
+                    - name: CONFIG_DIR
+                      value: /Data/cpd-config
+                    - name: STATUS_DIR
+                      value: /Data/cpd-status
+                    - name: CP_ENTITLEMENT_KEY
+                      valueFrom:
+                        secretKeyRef:
+                          key: cp-entitlement-key
+                          name: cloud-pak-entitlement-key
+                    volumeMounts:
+                    - name: config-volume
+                      mountPath: /Data/cpd-config/config
+                    - name: status-volume
+                      mountPath: /Data/cpd-status
+                    command: ["/bin/sh","-xc"]
+                    args: 
+                      - /cloud-pak-deployer/cp-deploy.sh env apply -v
+                  restartPolicy: Never
+                  securityContext:
+                    runAsUser: 0
+                  serviceAccountName: cloud-pak-deployer-sa
+                  volumes:
+                  - name: config-volume
+                    configMap:
+                      name: cloud-pak-deployer-config
+                  - name: status-volume
+                    persistentVolumeClaim:
+                      claimName: cloud-pak-deployer-status
             EOF
 
             sleep 30
