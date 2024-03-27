@@ -14,10 +14,46 @@ spec:
       type: string
       description: If you want to use CPDeployer image from custom public Git repo - provide git repo ref
       default: "false"
-    - name: custom-build-storage-class
+    - name: namespace
       type: string
-      description: If you want to use CPDeployer image from custom public Git repo - provide storage class name for persistence
-      default: "false"  
+      description: Namespace for Cloud Pak Deployer deployment
+      default: "cloud-pak-deployer"
+    - name: storage-class
+      type: string
+      description: RWX storage class needed for Cloud Pak Deployer
+      default: "ocs-storagecluster-cephfs"
+    - name: cloud-pak-deployer-storage-class
+      type: string
+      description: |
+        Choose the defined storage class for the cloud pak deployer.
+        {
+          "options": [
+            {"text": "auto-storage","value": "auto-storage", "default": "true"},
+            {"text": "ocs-storage","value": "ocs-storage"},
+            {"text": "nfs-storage","value": "nfs-storage"}
+          ]
+        }
+      default: "auto-storage"
+    - name: cloud-pak-deployer-storage-type
+      type: string
+      description: |
+        Choose the defined storage type for the cloud pak deployer.
+        {
+          "options": [
+            {"text": "auto","value": "auto", "default": "true"},
+            {"text": "ocs","value": "ocs"},
+            {"text": "nfs","value": "nfs"}
+          ]
+        }
+      default: "auto"
+    - name: ocp-client-version
+      type: string
+      description: Openshift client version
+      default: "4.14"
+    - name: cloud-pak-deployer-image-tag
+      type: string
+      description: The image tag used for Cloud Pak Deployer run
+      default: "latest"
     - name: ibm-entitlement-key
       type: string
       description: The IBM entitlement key with permissions for pulling cp4ba images
@@ -455,7 +491,7 @@ spec:
       params:
         - name: SCRIPT
           value: |
-            oc patch configmap/pipeline-output -p "{\"data\":{\"Status\":\"Pipeline run Successful, see configmap $(params.cp4ba-project)-usage in cloud-pak-deployer Project for available Routes and credentials\"}}"
+            oc patch configmap/pipeline-output -p "{\"data\":{\"Status\":\"Pipeline run Successful, see configmap $(params.cp4ba-project)-usage in $(params.namespace) Project for available Routes and credentials\"}}"
   tasks:
     - name: add-namespace
       retries: 3
@@ -470,7 +506,7 @@ spec:
             kind: Namespace
             metadata:
               creationTimestamp: null
-              name: cloud-pak-deployer
+              name: $(params.namespace)
             EOF
     - name: add-sa
       retries: 3
@@ -487,7 +523,7 @@ spec:
             kind: ServiceAccount
             metadata:
               name: cloud-pak-deployer-sa
-              namespace: cloud-pak-deployer
+              namespace: $(params.namespace)
             EOF
     - name: add-sa-permissions
       retries: 3
@@ -504,7 +540,7 @@ spec:
             kind: RoleBinding
             metadata:
               name: system:openshift:scc:privileged
-              namespace: cloud-pak-deployer
+              namespace: $(params.namespace)
             roleRef:
               apiGroup: rbac.authorization.k8s.io
               kind: ClusterRole
@@ -512,7 +548,7 @@ spec:
             subjects:
             - kind: ServiceAccount
               name: cloud-pak-deployer-sa
-              namespace: cloud-pak-deployer
+              namespace: $(params.namespace)
             EOF
     - name: bind-sa-permissions
       retries: 3
@@ -536,8 +572,32 @@ spec:
             subjects:
             - kind: ServiceAccount
               name: cloud-pak-deployer-sa
-              namespace: cloud-pak-deployer
+              namespace: $(params.namespace)
             EOF
+    - name: create-pvc
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      runAfter:
+        - bind-sa-permissions
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF
+            apiVersion: v1 
+            kind: PersistentVolumeClaim
+            metadata:
+              name: cloud-pak-deployer-status
+              namespace: $(params.namespace)
+            spec:
+              accessModes:
+              - ReadWriteMany
+              storageClassName: $(params.storage-class)
+              resources:
+                requests:
+                  storage: 10Gi
+            EOF            
     - name: get-tz-ibm-entitlement-key
       retries: 3
       params:
@@ -550,7 +610,7 @@ spec:
         kind: Task
         name: ibmcloud-secrets-manager-get
       runAfter:
-        - bind-sa-permissions
+        - create-pvc
     - name: assign-ibm-entitlement-key
       retries: 3
       params:
@@ -603,7 +663,7 @@ spec:
             kind: Secret
             metadata:
               name: cloud-pak-entitlement-key
-              namespace: cloud-pak-deployer
+              namespace: $(params.namespace)
             type: Opaque
             stringData:
               cp-entitlement-key: |
@@ -624,30 +684,28 @@ spec:
             kind: ConfigMap
             metadata:
               name: cloud-pak-deployer-config
-              namespace: cloud-pak-deployer
+              namespace: $(params.namespace)
             data:
               cpd-config.yaml: |
                 global_config:
+                  environment_name: cp4ba
                   cloud_platform: existing-ocp
                   env_id: cp4ba
-                  environment_name: cp4ba
                   universal_password: '$(params.universal-password)'
 
                 openshift:
-                - cluster_name: "{{ env_id }}"
+                - name: cpd-demo
+                  ocp_version: '$(params.ocp-client-version)'
+                  cluster_name: cpd-demo
                   domain_name: example.com
-                  name: "{{ env_id }}"
-                  ocp_version: "4.14"
-                  console_banner: "{{ env_id }}"
                   openshift_storage:
-                  - storage_name: auto-storage
-                    storage_type: auto
+                  - storage_name: $(params.cloud-pak-deployer-storage-class)
+                    storage_type: $(params.cloud-pak-deployer-storage-type)
 
                 cp4ba:
                 - project: $(params.cp4ba-project)
                   collateral_project: $(params.cp4ba-collateral-project)
-                  openshift_cluster_name: "{{ env_id }}"
-                  openshift_storage_name: auto-storage
+                  openshift_cluster_name: cpd-demo
                   accept_licenses: true
                   state: $(params.cp4ba-state)
                   cpfs_profile_size: $(params.cpfs-profile-size) # Profile size which affect replicas and resources of Pods of CPFS as per https://www.ibm.com/docs/en/cpfs?topic=operator-hardware-requirements-recommendations-foundational-services
@@ -773,31 +831,16 @@ spec:
       params:
         - name: SCRIPT
           value: |
-            oc delete job cloud-pak-deployer -n cloud-pak-deployer --ignore-not-found
-            oc delete imagestream cloud-pak-deployer -n cloud-pak-deployer --ignore-not-found
-            oc delete build --all -n cloud-pak-deployer --ignore-not-found
-
-            oc apply -f - <<EOF
-            apiVersion: v1
-            kind: PersistentVolumeClaim
-            metadata:
-              name: cloud-pak-deployer-status
-              namespace: cloud-pak-deployer
-            spec:
-              accessModes:
-                - ReadWriteMany
-              resources:
-                requests:
-                  storage: 10Gi
-              storageClassName: $(params.custom-build-storage-class)
-            EOF
+            oc delete job cloud-pak-deployer -n $(params.namespace) --ignore-not-found
+            oc delete imagestream cloud-pak-deployer -n $(params.namespace) --ignore-not-found
+            oc delete build --all -n $(params.namespace) --ignore-not-found
 
             oc apply -f - <<EOF
             apiVersion: image.openshift.io/v1
             kind: ImageStream
             metadata:
               name: cloud-pak-deployer
-              namespace: cloud-pak-deployer
+              namespace: $(params.namespace)
             spec:
               lookupPolicy:
                 local: true
@@ -808,7 +851,7 @@ spec:
             apiVersion: build.openshift.io/v1
             metadata:
               generateName: cloud-pak-deployer-bc-
-              namespace: cloud-pak-deployer
+              namespace: $(params.namespace)
               labels:
                 app: cloud-pak-deployer
             spec:
@@ -834,7 +877,7 @@ spec:
                 - message: Manually triggered
             EOF
 
-            oc wait build -l app=cloud-pak-deployer --for condition=Complete -n cloud-pak-deployer --timeout=10m
+            oc wait build -l app=cloud-pak-deployer --for condition=Complete -n $(params.namespace) --timeout=10m
     - name: run-the-deployer-with-custom-image
       taskRef:
         kind: Task
@@ -853,7 +896,7 @@ spec:
               labels:
                 app: cloud-pak-deployer
               name: cloud-pak-deployer
-              namespace: cloud-pak-deployer
+              namespace: $(params.namespace)
             spec:
               parallelism: 1
               completions: 1
@@ -905,19 +948,19 @@ spec:
 
             while true
             do
-              is_complete=$(oc get -n cloud-pak-deployer job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Complete") | contains({"status": "'True'"})')
+              is_complete=$(oc get -n $(params.namespace) job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Complete") | contains({"status": "'True'"})')
               if [[ $is_complete != "true" ]]; then
-                echo "Waiting for job to be Complete. See cloud-pak-deployer pod's logs in project cloud-pak-deployer for more details."
+                echo "Waiting for job to be Complete. See cloud-pak-deployer pod's logs in project $(params.namespace) for more details."
               else
                 echo "Cloud Pak Deployer job is Complete."
                 break
               fi
 
-              did_fail=$(oc get -n cloud-pak-deployer job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | contains({"status": "'True'"})')
+              did_fail=$(oc get -n $(params.namespace) job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | contains({"status": "'True'"})')
               if [[ $did_fail == "true" ]]; then
                 echo "Cloud Pak Deployer job failed."
-                echo $(oc get -n cloud-pak-deployer job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .reason')
-                echo $(oc get -n cloud-pak-deployer job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .message')
+                echo $(oc get -n $(params.namespace) job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .reason')
+                echo $(oc get -n $(params.namespace) job/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .message')
                 exit 68
               fi
               
