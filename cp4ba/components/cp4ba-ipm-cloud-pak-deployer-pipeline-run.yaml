@@ -1,0 +1,76 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: cp4ba-cloud-pak-deployer-run-
+spec:
+  timeouts:
+    pipeline: 7h0m0s
+  pipelineRef:
+    name: cp4ba-cloud-pak-deployer
+  params:
+    - name: bas-enabled
+      value: "false"
+    - name: bai-enabled
+      value: "false"
+    - name: ae-enabled
+      value: "false"
+    - name: decisions-enabled
+      value: "false"
+    - name: decision-center-enabled
+      value: "false"
+    - name: decision-runner-enabled
+      value: "false"
+    - name: decision-server-runtime-enabled
+      value: "false"
+    - name: decisions-ads-enabled
+      value: "false"
+    - name: ads-designer-enabled
+      value: "false"
+    - name: ads-runtime-enabled
+      value: "false"
+    - name: content-enabled
+      value: "false"
+    - name: cmis-enabled
+      value: "false"
+    - name: css-enabled
+      value: "false"
+    - name: es-enabled
+      value: "false"
+    - name: tm-enabled
+      value: "false"
+    - name: ier-enabled
+      value: "false"
+    - name: icc4sap-enabled
+      value: "false"
+    - name: application-enabled
+      value: "false"
+    - name: app-designer-enabled
+      value: "false"
+    - name: ae-data-persistence-enabled
+      value: "false"
+    - name: document-processing-enabled
+      value: "false"
+    - name: document-processing-designer-enabled
+      value: "false"
+    - name: workflow-enabled
+      value: "false"
+    - name: baw-authoring-enabled
+      value: "false"
+    - name: kafka-enabled
+      value: "false"
+    - name: pm-enabled
+      value: "true"
+    - name: rpa-enabled
+      value: "false"
+    - name: cloudbeaver-enabled
+      value: "false"
+    - name: roundcube-enabled
+      value: "false"
+    - name: cerebro-enabled
+      value: "false"
+    - name: akhq-enabled
+      value: "false"
+    - name: mongo-express-enabled
+      value: "false"
+    - name: phpldapadmin-enabled
+      value: "false"
