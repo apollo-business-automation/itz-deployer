@@ -597,7 +597,7 @@ spec:
               resources:
                 requests:
                   storage: 10Gi
-            EOF            
+            EOF
     - name: get-tz-ibm-entitlement-key
       retries: 3
       params:
