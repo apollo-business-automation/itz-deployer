@@ -11,4 +11,4 @@ spec:
     - name: custom-build-git
       value: "https://github.com/IBM/cloud-pak-deployer"
     - name: custom-build-ref
-      value: "cp4ba-2024-03-22"
+      value: "cp4ba-2024-03-27"

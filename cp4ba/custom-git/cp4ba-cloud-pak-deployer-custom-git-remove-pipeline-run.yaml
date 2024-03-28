@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
-  generateName: cp4ba-cloud-pak-deployer-custom-git-run-
+  generateName: cp4ba-cloud-pak-deployer-custom-git-remove-run-
 spec:
   timeouts:
     pipeline: 7h0m0s
@@ -11,6 +11,6 @@ spec:
     - name: custom-build-git
       value: "https://github.com/IBM/cloud-pak-deployer"
     - name: custom-build-ref
-      value: "cp4ba-2024-03-22"
+      value: "cp4ba-2024-03-27"
     - name: cp4ba-state
       value: "removed"
