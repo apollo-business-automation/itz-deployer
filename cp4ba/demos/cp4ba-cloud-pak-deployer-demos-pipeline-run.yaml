@@ -7,3 +7,6 @@ spec:
     pipeline: 9h0m0s
   pipelineRef:
     name: cp4ba-cloud-pak-deployer-demos
+  params:
+    - name: cloud-pak-deployer-image-tag
+      value: "latest" 
