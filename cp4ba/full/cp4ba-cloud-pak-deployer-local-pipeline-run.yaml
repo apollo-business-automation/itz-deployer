@@ -8,5 +8,7 @@ spec:
   pipelineRef:
     name: cp4ba-cloud-pak-deployer
   params:
+    - name: cloud-pak-deployer-image-address
+      value: "cloud-pak-deployer"
     - name: cloud-pak-deployer-image-tag
       value: "latest"

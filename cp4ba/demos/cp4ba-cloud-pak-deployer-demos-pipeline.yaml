@@ -42,6 +42,10 @@ spec:
       type: string
       description: Openshift client version
       default: "4.14"
+    - name: cloud-pak-deployer-image-address
+      type: string
+      description: The image address used for Cloud Pak Deployer run
+      default: "quay.io/cloud-pak-deployer/cloud-pak-deployer"      
     - name: cloud-pak-deployer-image-tag
       type: string
       description: The image tag used for Cloud Pak Deployer run
@@ -900,6 +904,7 @@ spec:
         - name: SCRIPT
           value: |
             oc delete job cloud-pak-deployer -n $(params.namespace) --ignore-not-found
+            oc delete job cloud-pak-deployer-debug -n $(params.namespace) --ignore-not-found
 
             sleep 20
 
@@ -923,7 +928,7 @@ spec:
                 spec:
                   containers:
                   - name: cloud-pak-deployer
-                    image: quay.io/cloud-pak-deployer/cloud-pak-deployer:$(params.cloud-pak-deployer-image-tag)
+                    image: $(params.cloud-pak-deployer-image-address):$(params.cloud-pak-deployer-image-tag)
                     imagePullPolicy: Always
                     terminationMessagePath: /dev/termination-log
                     terminationMessagePolicy: File
@@ -945,6 +950,61 @@ spec:
                     command: ["/bin/sh","-xc"]
                     args: 
                       - /cloud-pak-deployer/cp-deploy.sh env apply -v
+                  restartPolicy: Never
+                  securityContext:
+                    runAsUser: 0
+                  serviceAccountName: cloud-pak-deployer-sa
+                  volumes:
+                  - name: config-volume
+                    configMap:
+                      name: cloud-pak-deployer-config
+                  - name: status-volume
+                    persistentVolumeClaim:
+                      claimName: cloud-pak-deployer-status
+            EOF
+
+            oc apply -f - <<EOF
+            apiVersion: batch/v1
+            kind: Job
+            metadata:
+              labels:
+                app: cloud-pak-deployer-debug
+              name: cloud-pak-deployer-debug
+              namespace: $(params.namespace)
+            spec:
+              parallelism: 1
+              completions: 1
+              backoffLimit: 1
+              template:
+                metadata:
+                  name: cloud-pak-deployer-debug
+                  labels:
+                    app: cloud-pak-deployer-debug
+                spec:
+                  containers:
+                  - name: cloud-pak-deployer-debug
+                    image: $(params.cloud-pak-deployer-image-address):$(params.cloud-pak-deployer-image-tag)
+                    imagePullPolicy: Always
+                    terminationMessagePath: /dev/termination-log
+                    terminationMessagePolicy: File
+                    env:
+                    - name: CONFIG_DIR
+                      value: /Data/cpd-config
+                    - name: STATUS_DIR
+                      value: /Data/cpd-status
+                    - name: CP_ENTITLEMENT_KEY
+                      valueFrom:
+                        secretKeyRef:
+                          key: cp-entitlement-key
+                          name: cloud-pak-entitlement-key
+                    volumeMounts:
+                    - name: config-volume
+                      mountPath: /Data/cpd-config/config
+                    - name: status-volume
+                      mountPath: /Data/cpd-status
+                    command: ["/bin/sh","-xc"]
+                    args: 
+                       - sleep infinity
                   restartPolicy: Never
                   securityContext:
                     runAsUser: 0
