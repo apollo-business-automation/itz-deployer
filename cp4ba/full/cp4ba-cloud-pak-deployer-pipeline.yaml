@@ -199,7 +199,7 @@ spec:
             {"text": "false","value": "false" }
           ]
         }
-      default: "true"           
+      default: "true"
     - name: ads-runtime-enabled
       type: string
       description: |
@@ -211,6 +211,26 @@ spec:
           ]
         }
       default: "true"
+    - name: ads-genai-api-key
+      type: string
+      description: |
+        ADS GenAI API key?
+      default: "<watsonx_ai_api_key>"
+    - name: ads-genai-auth-url
+      type: string
+      description: |
+        ADS GenAI authentication URL?
+      default: "https://iam.bluemix.net/identity/token"
+    - name: ads-genai-ml-url
+      type: string
+      description: |
+        ADS GenAI ML URL?
+      default: "https://us-south.ml.cloud.ibm.com"
+    - name: ads-genai-project-id
+      type: string
+      description: |
+        ADS GenAI Project ID?
+      default: "<project_id>"
     - name: content-enabled
       type: string
       description: |
@@ -456,6 +476,17 @@ spec:
       type: string
       description: |
         PHPLDAPAdmin enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"       
+    - name: opensearch-dashboards-enabled
+      type: string
+      description: |
+        OpenSearch Dashboards enabled?
         {
           "options": [
             {"text": "true","value": "true", "default": "true"},
@@ -736,6 +767,11 @@ spec:
                         optional_components:
                           ads_designer: $(params.ads-designer-enabled) # Designer (ADS)
                           ads_runtime: $(params.ads-runtime-enabled) # Runtime (ADS)
+                        gen_ai: # https://www.ibm.com/docs/en/cloud-paks/cp-biz-automation/latest?topic=services-configuring-generative-ai-secret
+                          apiKey: $(params.ads-genai-api-key)
+                          authUrl: $(params.ads-genai-auth-url)
+                          mlUrl: $(params.ads-genai-ml-url)
+                          projectId: $(params.ads-genai-project-id)
                       content: # FileNet Content Manager (FNCM) - https://www.ibm.com/docs/en/cloud-paks/cp-biz-automation/22.0.2?topic=deployment-capabilities-production-deployments#concept_c2l_1ks_fnb__ecm
                         enabled: $(params.content-enabled)
                         optional_components:
@@ -815,6 +851,9 @@ spec:
 
                   # Set to false if you don't want to install (or remove) phpLDAPAdmin
                   phpldapadmin_enabled: $(params.phpldapadmin-enabled)
+
+                  # Set to false if you don't want to install (or remove) OpenSearch Dashboards
+                  opensearch_dashboards_enabled: $(params.opensearch-dashboards-enabled)
             EOF
     - name: run-the-deployer
       taskRef:

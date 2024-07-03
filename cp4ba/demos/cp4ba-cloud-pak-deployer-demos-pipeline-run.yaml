@@ -10,3 +10,5 @@ spec:
   params:
     - name: cloud-pak-deployer-image-tag
       value: "latest"
+    - name: co-generated-users-password
+      value: "-generated-"
