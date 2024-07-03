@@ -1190,7 +1190,10 @@ spec:
                                   "dn": "${dollar}(generalUsersGroupFull)${dollar}"
                                }
                             ],
-                            "roles": [],
+                            "roles": [
+                            	"iaf-automation-admin",
+                              "iaf-automation-developer"
+                            ],
                             "replacementText": "USER",
                             "userBaseName": "usr",
                             "userNumberingFormatter": "%03d",
