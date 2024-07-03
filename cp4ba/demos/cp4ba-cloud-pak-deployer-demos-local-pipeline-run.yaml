@@ -8,7 +8,7 @@ spec:
   pipelineRef:
     name: cp4ba-cloud-pak-deployer-demos
   params:
+    - name: cloud-pak-deployer-image-address
+      value: "cloud-pak-deployer"
     - name: cloud-pak-deployer-image-tag
       value: "latest"
-    - name: co-generated-users-password
-      value: "-generated-"
