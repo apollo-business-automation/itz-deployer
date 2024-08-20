@@ -3,7 +3,6 @@ apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
   name: cp4ba-cloud-pak-deployer-demos
-  annotations:
 spec:
   params:
     - name: namespace
@@ -41,7 +40,7 @@ spec:
     - name: ocp-client-version
       type: string
       description: Openshift client version
-      default: "4.14"
+      default: "4.15"
     - name: cloud-pak-deployer-image-address
       type: string
       description: The image address used for Cloud Pak Deployer run
@@ -482,7 +481,29 @@ spec:
             {"text": "false","value": "false" }
           ]
         }
-      default: "true"       
+      default: "true"
+    - name: opensearch-dashboards-enabled
+      type: string
+      description: |
+        OpenSearch Dashboards enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: co-deploy
+      type: string
+      description: |
+        Should the Client Onboarding be deployed?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
     - name: co-configure-labs
       type: string
       description: |
@@ -541,10 +562,10 @@ spec:
         Use generated password or a fixed one for all users?
         Value -generated- means generate, any other value is a static one.
       default: "-generated-"
-    - name: opensearch-dashboards-enabled
+    - name: da-deploy
       type: string
       description: |
-        OpenSearch Dashboards enabled?
+        Should the Deployment Accelerator be deployed?
         {
           "options": [
             {"text": "true","value": "true", "default": "true"},
@@ -552,6 +573,10 @@ spec:
           ]
         }
       default: "true"
+    - name: da-image-tag
+      type: string
+      description: The image tag used for Accelerator
+      default: "latest"
   finally:
     - name: deployer-update-configmap-failure
       when:
@@ -579,6 +604,9 @@ spec:
             oc patch configmap/pipeline-output -p '{"data":{"Deployer-Status":"Pipeline run Successful, see ConfigMap $(params.cp4ba-project)-usage in $(params.namespace) Project for available Routes and credentials"}}'
     - name: co-update-configmap-failure
       when:
+        - input: $(params.co-deploy)
+          operator: in
+          values: ["true"]
         - input: $(tasks.co-job.status)
           operator: in
           values: ["Failed"]
@@ -591,6 +619,9 @@ spec:
             oc patch configmap/pipeline-output -p '{"data":{"Client-Onboarding-Status":"Pipeline run failed. See Pipeline run for more details and consider running the pipeline again."}}'
     - name: co-update-configmap-success
       when:
+        - input: $(params.co-deploy)
+          operator: in
+          values: ["true"]
         - input: $(tasks.co-job.status)
           operator: in
           values: ["Succeeded"]
@@ -601,8 +632,42 @@ spec:
         - name: SCRIPT
           value: |
             oc patch configmap/pipeline-output -p '{"data":{"Client-Onboarding-Status":"Pipeline run Successful, see ConfigMap client-onboarding-information in $(params.cp4ba-project) Project for Client Onboarding access details"}}'
+    - name: da-update-configmap-failure
+      when:
+        - input: $(params.da-deploy)
+          operator: in
+          values: ["true"]
+        - input: $(tasks.da-deployment.status)
+          operator: in
+          values: ["Failed"]
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      params:
+        - name: SCRIPT
+          value: |
+            oc patch configmap/pipeline-output -p '{"data":{"Accelerator-Status":"Pipeline run failed. See Pipeline run for more details and consider running the pipeline again."}}'
+    - name: da-update-configmap-success
+      when:
+        - input: $(params.da-deploy)
+          operator: in
+          values: ["true"]        
+        - input: $(tasks.da-deployment.status)
+          operator: in
+          values: ["Succeeded"]
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      params:
+        - name: SCRIPT
+          value: |
+            oc patch configmap/pipeline-output -p '{"data":{"Accelerator-Status":"Pipeline run Successful, see newly created Route cp4accelerator in $(params.cp4ba-project) Project to access Accelerator"}}'
   tasks:
-    - name: add-namespace
+    - name: add-namespace-cp4ba
+      when:
+        - input: $(params.da-deploy)
+          operator: in
+          values: ["true"]    
       retries: 3
       taskRef:
         kind: Task
@@ -611,6 +676,237 @@ spec:
         - name: SCRIPT
           value: |
             oc apply -f - <<EOF 
+            apiVersion: v1
+            kind: Namespace
+            metadata:
+              creationTimestamp: null
+              name: $(params.cp4ba-project)
+            EOF
+    - name: da-add-sa
+      when:
+        - input: $(params.da-deploy)
+          operator: in
+          values: ["true"]    
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      runAfter:
+        - add-namespace-cp4ba
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF 
+            apiVersion: v1
+            kind: ServiceAccount
+            metadata:
+              name: cpaccelerator-sa
+              namespace: $(params.cp4ba-project)
+            EOF
+    - name: da-bind-sa-cluster-role
+      when:
+        - input: $(params.da-deploy)
+          operator: in
+          values: ["true"]    
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      runAfter:
+        - da-add-sa
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF 
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: ClusterRoleBinding
+            metadata:
+              name: cpaccelerator-scc
+            roleRef:
+              apiGroup: rbac.authorization.k8s.io
+              kind: ClusterRole
+              name: cluster-admin
+            subjects:
+            - kind: ServiceAccount
+              name: cpaccelerator-sa
+              namespace: $(params.cp4ba-project)
+            EOF
+    - name: da-config
+      when:
+        - input: $(params.da-deploy)
+          operator: in
+          values: ["true"]    
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      runAfter:
+        - add-namespace-cp4ba
+      params:
+        - name: SCRIPT
+          value: |
+             oc apply -f - <<EOF 
+             apiVersion: v1
+             kind: ConfigMap
+             metadata:
+              name: cp4accelerator-cm
+              namespace: $(params.cp4ba-project)
+             data:
+               connection.properties: |
+                namespace=$(params.cp4ba-project)
+                masterUrl=http
+                mode=enterprise
+             EOF
+    - name: da-pvc
+      when:
+        - input: $(params.da-deploy)
+          operator: in
+          values: ["true"]    
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      runAfter:
+        - add-namespace-cp4ba
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF 
+            apiVersion: v1
+            kind: PersistentVolumeClaim
+            metadata:
+              name: cp4accelerator-pvc
+              namespace: $(params.cp4ba-project)
+            spec:
+              accessModes:
+                - ReadWriteOnce
+              storageClassName: $(params.storage-class)
+              resources:
+                requests:
+                  storage: 2Gi
+            EOF
+    - name: da-service
+      when:
+        - input: $(params.da-deploy)
+          operator: in
+          values: ["true"]    
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      runAfter:
+        - add-namespace-cp4ba
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF 
+            kind: Service
+            apiVersion: v1
+            metadata:
+              name: cp4accelerator-service
+              namespace: $(params.cp4ba-project)
+            spec:
+              ports:
+                - protocol: TCP
+                  port: 8080
+                  targetPort: 8080
+              selector:
+                app: cp4accelerator-app
+            EOF
+    - name: da-deployment
+      when:
+        - input: $(params.da-deploy)
+          operator: in
+          values: ["true"]    
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      runAfter:
+        - da-bind-sa-cluster-role
+        - da-config
+        - da-pvc
+        - da-service
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF 
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: cp4accelerator
+              namespace: $(params.cp4ba-project)
+            spec:
+              selector:
+                matchLabels:
+                  app: cp4accelerator-app
+              replicas: 1
+              template:
+                metadata:
+                  labels:
+                    app: cp4accelerator-app
+                spec:
+                  serviceAccountName: cpaccelerator-sa
+                  containers:
+                    - name: cp4accelerator
+                      image: docker.io/malekibm/cp4baacceleratoramd:$(params.da-image-tag)
+                      imagePullPolicy: Always
+                      ports:
+                        - containerPort: 8080
+                          protocol: TCP
+                      resources:
+                        requests:
+                          cpu: 500m
+                          memory: 512Mi
+                        limits:
+                          cpu: 1000m
+                          memory: 1536Mi
+                      startupProbe:
+                        httpGet:
+                          port: 8080
+                        timeoutSeconds: 1
+                        periodSeconds: 10
+                        successThreshold: 1
+                        failureThreshold: 30
+                      readinessProbe:
+                        httpGet:
+                          port: 8080
+                        timeoutSeconds: 1
+                        periodSeconds: 10
+                        successThreshold: 1
+                        failureThreshold: 10
+                      livenessProbe:
+                        httpGet:
+                          port: 8080
+                        timeoutSeconds: 1
+                        periodSeconds: 10
+                        successThreshold: 1
+                        failureThreshold: 10
+                      volumeMounts:
+                        - name: connection-cm
+                          mountPath: /home/cm
+                        - mountPath: /var/cp4accelerator
+                          name: cp4accelerator-pvc
+                  volumes:
+                    - name: connection-cm
+                      configMap:
+                        name: cp4accelerator-cm
+                    - name: cp4accelerator-pvc
+                      persistentVolumeClaim:
+                        claimName: cp4accelerator-pvc
+            EOF
+
+            sleep 20
+            oc wait -n $(params.cp4ba-project) --for=condition=available --timeout=300s deployment/cp4accelerator 
+    - name: add-namespace
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF
             apiVersion: v1
             kind: Namespace
             metadata:
@@ -634,7 +930,7 @@ spec:
               name: cloud-pak-deployer-sa
               namespace: $(params.namespace)
             EOF
-    - name: add-sa-permissions
+    - name: bind-sa-role
       retries: 3
       taskRef:
         kind: Task
@@ -659,13 +955,13 @@ spec:
               name: cloud-pak-deployer-sa
               namespace: $(params.namespace)
             EOF
-    - name: bind-sa-permissions
+    - name: bind-sa-cluster-role
       retries: 3
       taskRef:
         kind: Task
         name: ibm-pak
       runAfter:
-        - add-sa-permissions
+        - add-sa
       params:
         - name: SCRIPT
           value: |
@@ -689,7 +985,7 @@ spec:
         kind: Task
         name: ibm-pak
       runAfter:
-        - bind-sa-permissions
+        - add-namespace
       params:
         - name: SCRIPT
           value: |
@@ -719,7 +1015,7 @@ spec:
         kind: Task
         name: ibmcloud-secrets-manager-get
       runAfter:
-        - create-pvc
+        - add-namespace
     - name: assign-ibm-entitlement-key
       retries: 3
       params:
@@ -780,7 +1076,7 @@ spec:
             EOF
     - name: configure-cloud-paks-services
       runAfter:
-        - create-entitlement-key-secret
+        - add-namespace
       retries: 3
       taskRef:
         kind: Task
@@ -944,6 +1240,10 @@ spec:
       timeout: 7h0m0s
       retries: 3
       runAfter:
+        - bind-sa-role
+        - bind-sa-cluster-role
+        - create-pvc
+        - create-entitlement-key-secret
         - configure-cloud-paks-services
       params:
         - name: SCRIPT
@@ -1086,6 +1386,10 @@ spec:
               sleep 60
             done
     - name: co-add-sa
+      when:
+        - input: $(params.co-deploy)
+          operator: in
+          values: ["true"]    
       retries: 3
       taskRef:
         kind: Task
@@ -1102,7 +1406,11 @@ spec:
               name: cb4ba-deployment-tool-sa
               namespace: $(params.cp4ba-project)
             EOF
-    - name: co-add-sa-permissions
+    - name: co-bind-sa-role
+      when:
+        - input: $(params.co-deploy)
+          operator: in
+          values: ["true"]
       retries: 3
       taskRef:
         kind: Task
@@ -1127,13 +1435,17 @@ spec:
                 name: cb4ba-deployment-tool-sa
                 namespace: $(params.cp4ba-project)
             EOF
-    - name: co-bind-sa-permissions
+    - name: co-bind-sa-cluster-role
+      when:
+        - input: $(params.co-deploy)
+          operator: in
+          values: ["true"]    
       retries: 3
       taskRef:
         kind: Task
         name: ibm-pak
       runAfter:
-        - co-add-sa-permissions
+        - co-add-sa
       params:
         - name: SCRIPT
           value: |
@@ -1152,12 +1464,16 @@ spec:
               namespace: $(params.cp4ba-project)
             EOF
     - name: co-config
+      when:
+        - input: $(params.co-deploy)
+          operator: in
+          values: ["true"]    
       retries: 3
       taskRef:
         kind: Task
         name: ibm-pak
       runAfter:
-        - co-bind-sa-permissions
+        - run-the-deployer
       params:
         - name: SCRIPT
           value: |
@@ -1167,7 +1483,7 @@ spec:
             apiVersion: v1
             kind: ConfigMap
             metadata:
-              name: client-onboarding-config
+              name: client-onboarding-user-config
               namespace: $(params.cp4ba-project)
             data:
               AddUsersToPlatform.json: |
@@ -1204,11 +1520,17 @@ spec:
                 }
             EOF
     - name: co-job
+      when:
+        - input: $(params.co-deploy)
+          operator: in
+          values: ["true"]    
       retries: 3
       taskRef:
         kind: Task
         name: ibm-pak
       runAfter:
+        - co-bind-sa-role
+        - co-bind-sa-cluster-role
         - co-config
       params:
         - name: SCRIPT
@@ -1236,9 +1558,9 @@ spec:
                     - name: log-pvc
                       persistentVolumeClaim:
                         claimName: cp4a-shared-log-pvc
-                    - name: client-onboarding-config
+                    - name: client-onboarding-user-config
                       configMap:
-                        name: client-onboarding-config
+                        name: client-onboarding-user-config
                   containers:
                     - name: client-onboarding-deploy
                       image: ubi9/ubi:9.3
@@ -1299,7 +1621,7 @@ spec:
                       volumeMounts:
                         - name: log-pvc
                           mountPath: /logs/application
-                        - name: client-onboarding-config
+                        - name: client-onboarding-user-config
                           mountPath: /usr/client-onboarding/AddUsersToPlatform.json
                           subPath: AddUsersToPlatform.json                          
                   restartPolicy: Never

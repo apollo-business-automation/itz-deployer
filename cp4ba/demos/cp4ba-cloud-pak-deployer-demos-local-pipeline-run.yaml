@@ -12,3 +12,9 @@ spec:
       value: "cloud-pak-deployer"
     - name: cloud-pak-deployer-image-tag
       value: "latest"
+    - name: co-deploy
+      value: "true"
+    - name: co-generated-users-password
+      value: "-generated-"
+    - name: da-deploy
+      value: "true"
