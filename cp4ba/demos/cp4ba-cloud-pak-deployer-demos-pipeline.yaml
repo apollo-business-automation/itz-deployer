@@ -577,6 +577,17 @@ spec:
       type: string
       description: The image tag used for Accelerator
       default: "latest"
+    - name: cm-deploy
+      type: string
+      description: |
+        Should the Claims Management demo be deployed?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
   finally:
     - name: deployer-update-configmap-failure
       when:
@@ -1650,3 +1661,99 @@ spec:
               
               sleep 60
             done
+    - name: da-pipeline-sync
+    # waiting for CO as it restarts some services and that could cause other demos deployment to fail
+      when:
+        - input: $(params.da-deploy)
+          operator: in
+          values: ["true"]
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      runAfter:
+        - da-deploy
+      params:
+        - name: SCRIPT
+          value: |
+            CO_DEPLOY=$(params.co-deploy)
+            if [ "$CO_DEPLOY" = true ]; then
+              while true
+              do
+                is_complete=$(oc get -n $(params.cp4ba-project) job/client-onboarding-deploy -o yaml | yq '.status.conditions.[] | select(.type == "Complete") | contains({"status": "'True'"})')
+                if [[ $is_complete != "true" ]]; then
+                  echo "Waiting for job to be Complete. See client-onboarding-deploy pod's logs in project $(params.cp4ba-project) for more details."
+                else
+                  echo "Client Onboarding job is Complete."
+                  break
+                fi
+
+                did_fail=$(oc get -n $(params.cp4ba-project) job/client-onboarding-deploy -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | contains({"status": "'True'"})')
+                if [[ $did_fail == "true" ]]; then
+                  echo "Client Onboarding job failed."
+                  echo $(oc get -n $(params.cp4ba-project) job/client-onboarding-deploy -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .reason')
+                  echo $(oc get -n $(params.cp4ba-project) job/client-onboarding-deploy -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .message')
+                  break;
+                fi
+
+                sleep 60
+              done
+            fi
+    - name: cm-deploy
+      when:
+        - input: $(params.da-deploy)
+          operator: in
+          values: ["true"]
+        - input: $(params.cm-deploy)
+          operator: in
+          values: ["true"]
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      runAfter:
+        - da-pipeline-sync
+      params:
+        - name: SCRIPT
+          value: |
+            APPS_ENDPOINT=`oc get ingress.config.openshift.io cluster -o jsonpath='{.spec.domain}'`
+
+            # Define the URL to query
+            URL="https://cp4accelerator.$APPS_ENDPOINT/installDemo?demoID=ClaimsManagement"
+
+            # Define the total timeout (15 minutes) and sleep interval (20 seconds)
+            TOTAL_TIMEOUT=900   # 15 minutes in seconds
+            SLEEP_INTERVAL=20   # 20 seconds sleep
+            MAX_ATTEMPTS=$((TOTAL_TIMEOUT / SLEEP_INTERVAL)) # Calculate maximum attempts
+
+            # Initialize variables
+            attempt=0
+            success=false
+
+            # Loop until the condition is satisfied or max attempts are reached
+            while [ "$attempt" -lt "$MAX_ATTEMPTS" ]; do
+                # Increment the attempt counter
+                attempt=$((attempt + 1))
+                
+                # Perform the curl request and capture the response
+                response_body=$(curl -ks "$URL")
+
+                # Check if the response body contains "Installed"
+                if [[ "$response_body" == *"Installed"* ]]; then
+                    echo "Condition met: Response body contains 'Installed'."
+                    success=true
+                    break
+                else
+                    echo "Attempt $attempt/$MAX_ATTEMPTS: Response body does not contain 'Installed'."
+                    sleep "$SLEEP_INTERVAL" # Wait before retrying
+                fi
+            done
+
+            # Check if the loop exited successfully
+            if [ "$success" = true ]; then
+                echo "Success: The condition was met within the timeout period."
+            else
+                echo "Failure: Condition not met after $((TOTAL_TIMEOUT / 60)) minutes."
+                exit 1
+            fi
+

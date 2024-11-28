@@ -16,3 +16,5 @@ spec:
       value: "-generated-"
     - name: da-deploy
       value: "true"
+    - name: cm-deploy
+      value: "true"
