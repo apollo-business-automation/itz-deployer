@@ -662,7 +662,7 @@ spec:
       when:
         - input: $(params.da-deploy)
           operator: in
-          values: ["true"]        
+          values: ["true"]
         - input: $(tasks.da-deployment.status)
           operator: in
           values: ["Succeeded"]
@@ -673,6 +673,36 @@ spec:
         - name: SCRIPT
           value: |
             oc patch configmap/pipeline-output -p '{"data":{"Accelerator-Status":"Pipeline run Successful, see newly created Route cp4accelerator in $(params.cp4ba-project) Project to access Accelerator"}}'
+    - name: cm-update-configmap-failure
+      when:
+        - input: $(params.cm-deploy)
+          operator: in
+          values: ["true"]
+        - input: $(tasks.cm-deployment.status)
+          operator: in
+          values: ["Failed"]
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      params:
+        - name: SCRIPT
+          value: |
+            oc patch configmap/pipeline-output -p '{"data":{"Claims-Management-Status":"Pipeline run failed. See Pipeline run for more details and consider running the pipeline again."}}'
+    - name: cm-update-configmap-success
+      when:
+        - input: $(params.cm-deploy)
+          operator: in
+          values: ["true"]
+        - input: $(tasks.cm-deployment.status)
+          operator: in
+          values: ["Succeeded"]
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      params:
+        - name: SCRIPT
+          value: |
+            oc patch configmap/pipeline-output -p '{"data":{"Claims-Management-Status":"Pipeline run Successful, Claims Management demo deployed"}}'
   tasks:
     - name: add-namespace-cp4ba
       when:
@@ -1672,7 +1702,7 @@ spec:
         kind: Task
         name: ibm-pak
       runAfter:
-        - da-deploy
+        - da-deployment
       params:
         - name: SCRIPT
           value: |
@@ -1699,7 +1729,7 @@ spec:
                 sleep 60
               done
             fi
-    - name: cm-deploy
+    - name: cm-deployment
       when:
         - input: $(params.da-deploy)
           operator: in
