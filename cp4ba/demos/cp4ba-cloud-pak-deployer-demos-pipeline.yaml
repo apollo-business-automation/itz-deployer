@@ -1723,7 +1723,7 @@ spec:
                   echo "Client Onboarding job failed."
                   echo $(oc get -n $(params.cp4ba-project) job/client-onboarding-deploy -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .reason')
                   echo $(oc get -n $(params.cp4ba-project) job/client-onboarding-deploy -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .message')
-                  break;
+                  exit 68
                 fi
 
                 sleep 60
@@ -1746,10 +1746,18 @@ spec:
       params:
         - name: SCRIPT
           value: |
-            APPS_ENDPOINT=`oc get ingress.config.openshift.io cluster -o jsonpath='{.spec.domain}'`
+            INSTALL_URL="http://cp4accelerator-service.$(params.cp4ba-project).svc.cluster.local:8080/installDemo?demoID=ClaimsManagement"
+            CHECK_URL="http://cp4accelerator-service.$(params.cp4ba-project).svc.cluster.local:8080/Toolbox/demoStatus?id=ClaimsManagement"
 
-            # Define the URL to query
-            URL="https://cp4accelerator.$APPS_ENDPOINT/installDemo?demoID=ClaimsManagement"
+            response_body=$(curl -ks "$CHECK_URL")
+            # Check if the response body contains "Installed"
+            if [[ "$response_body" == "Installed" ]]; then
+                echo "Condition met: Response body already contains 'Installed'."
+                exit 0
+            fi
+            #Execute installation of demo
+            response_body=$(curl -kv "$INSTALL_URL")
+            echo "Response body of the Install curl call is:\n$response_body"
 
             # Define the total timeout (15 minutes) and sleep interval (20 seconds)
             TOTAL_TIMEOUT=900   # 15 minutes in seconds
@@ -1766,15 +1774,15 @@ spec:
                 attempt=$((attempt + 1))
                 
                 # Perform the curl request and capture the response
-                response_body=$(curl -ks "$URL")
+                response_body=$(curl -ks "$CHECK_URL")
 
                 # Check if the response body contains "Installed"
-                if [[ "$response_body" == *"Installed"* ]]; then
+                if [[ "$response_body" == "Installed" ]]; then
                     echo "Condition met: Response body contains 'Installed'."
                     success=true
                     break
                 else
-                    echo "Attempt $attempt/$MAX_ATTEMPTS: Response body does not contain 'Installed'."
+                    echo "Attempt $attempt/$MAX_ATTEMPTS: Response body is not equal to 'Installed'. It is \"$response_body\""
                     sleep "$SLEEP_INTERVAL" # Wait before retrying
                 fi
             done
