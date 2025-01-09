@@ -40,7 +40,7 @@ spec:
     - name: ocp-client-version
       type: string
       description: Openshift client version
-      default: "4.15"
+      default: "4.16"
     - name: cloud-pak-deployer-image-address
       type: string
       description: The image address used for Cloud Pak Deployer run
@@ -1703,6 +1703,7 @@ spec:
         name: ibm-pak
       runAfter:
         - da-deployment
+        - run-the-deployer
       params:
         - name: SCRIPT
           value: |
