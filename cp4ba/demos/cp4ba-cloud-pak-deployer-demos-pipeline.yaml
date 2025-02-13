@@ -890,7 +890,7 @@ spec:
                   serviceAccountName: cpaccelerator-sa
                   containers:
                     - name: cp4accelerator
-                      image: docker.io/malekibm/cp4baacceleratoramd:$(params.da-image-tag)
+                      image: quay.io/malek_jabri/cp4baacceleratoramd:$(params.da-image-tag)
                       imagePullPolicy: Always
                       ports:
                         - containerPort: 8080
@@ -1777,7 +1777,7 @@ spec:
       params:
         - name: SCRIPT
           value: |
-            INSTALL_URL="http://cp4accelerator-service.$(params.cp4ba-project).svc.cluster.local:8080/installDemo?demoID=ClaimsManagement"
+            INSTALL_URL="http://cp4accelerator-service.$(params.cp4ba-project).svc.cluster.local:8080/Toolbox/installDemoRest?id=ClaimsManagement"
             CHECK_URL="http://cp4accelerator-service.$(params.cp4ba-project).svc.cluster.local:8080/Toolbox/demoStatus?id=ClaimsManagement"
 
             response_body=$(curl -ks "$CHECK_URL")
