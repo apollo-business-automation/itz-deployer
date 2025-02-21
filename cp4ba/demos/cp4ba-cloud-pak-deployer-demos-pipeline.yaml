@@ -1560,7 +1560,7 @@ spec:
                     ]
                 }
             EOF
-    - name: co-add-permissive-netpol
+    - name: co-add-allow-all-netpol
       when:
         - input: $(params.co-deploy)
           operator: in
@@ -1587,8 +1587,8 @@ spec:
               egress:
                 - {}
               policyTypes:
-                - Egress          
-            EOF         
+                - Egress
+            EOF
     - name: co-job
       when:
         - input: $(params.co-deploy)
@@ -1602,7 +1602,7 @@ spec:
         - co-bind-sa-role
         - co-bind-sa-cluster-role
         - co-config
-        - co-add-permissive-netpol
+        - co-add-allow-all-netpol
       params:
         - name: SCRIPT
           value: |
