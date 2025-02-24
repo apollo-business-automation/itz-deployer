@@ -890,7 +890,7 @@ spec:
                   serviceAccountName: cpaccelerator-sa
                   containers:
                     - name: cp4accelerator
-                      image: docker.io/malekibm/cp4baacceleratoramd:$(params.da-image-tag)
+                      image: quay.io/malek_jabri/cp4baacceleratoramd:$(params.da-image-tag)
                       imagePullPolicy: Always
                       ports:
                         - containerPort: 8080
@@ -1560,6 +1560,35 @@ spec:
                     ]
                 }
             EOF
+    - name: co-add-allow-all-netpol
+      when:
+        - input: $(params.co-deploy)
+          operator: in
+          values: ["true"]    
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      runAfter:
+        - run-the-deployer
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f - <<EOF 
+            apiVersion: networking.k8s.io/v1
+            kind: NetworkPolicy
+            metadata:
+              name: client-onboarding-deploy-egress-allow-all
+              namespace: $(params.cp4ba-project)
+            spec:
+              podSelector:
+                matchLabels:
+                  job-name: client-onboarding-deploy
+              egress:
+                - {}
+              policyTypes:
+                - Egress
+            EOF
     - name: co-job
       when:
         - input: $(params.co-deploy)
@@ -1573,6 +1602,7 @@ spec:
         - co-bind-sa-role
         - co-bind-sa-cluster-role
         - co-config
+        - co-add-allow-all-netpol
       params:
         - name: SCRIPT
           value: |
@@ -1747,7 +1777,7 @@ spec:
       params:
         - name: SCRIPT
           value: |
-            INSTALL_URL="http://cp4accelerator-service.$(params.cp4ba-project).svc.cluster.local:8080/installDemo?demoID=ClaimsManagement"
+            INSTALL_URL="http://cp4accelerator-service.$(params.cp4ba-project).svc.cluster.local:8080/Toolbox/installDemoRest?id=ClaimsManagement"
             CHECK_URL="http://cp4accelerator-service.$(params.cp4ba-project).svc.cluster.local:8080/Toolbox/demoStatus?id=ClaimsManagement"
 
             response_body=$(curl -ks "$CHECK_URL")
