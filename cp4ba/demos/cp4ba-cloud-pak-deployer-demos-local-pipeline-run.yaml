@@ -8,6 +8,12 @@ spec:
   pipelineRef:
     name: cp4ba-cloud-pak-deployer-demos
   params:
+    - name: cloud-pak-deployer-image-build
+      value: "true"
+    - name: cloud-pak-deployer-image-build-repo
+      value: "https://github.com/IBM/cloud-pak-deployer"
+    - name: cloud-pak-deployer-image-build-repo-ref
+      value: "20250303"
     - name: cloud-pak-deployer-image-address
       value: "cloud-pak-deployer"
     - name: cloud-pak-deployer-image-tag
