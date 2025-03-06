@@ -8,6 +8,14 @@ spec:
   pipelineRef:
     name: cp4ba-cloud-pak-deployer-demos
   params:
+    - name: cloud-pak-deployer-image-build
+      value: "false"
+    - name: cloud-pak-deployer-image-build-repo
+      value: "https://github.com/IBM/cloud-pak-deployer"
+    - name: cloud-pak-deployer-image-build-repo-ref
+      value: "main"
+    - name: cloud-pak-deployer-image-address
+      value: "quay.io/cloud-pak-deployer/cloud-pak-deployer"
     - name: cloud-pak-deployer-image-tag
       value: "latest"
     - name: co-deploy

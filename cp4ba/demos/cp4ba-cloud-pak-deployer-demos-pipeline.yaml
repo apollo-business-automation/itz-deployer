@@ -41,6 +41,18 @@ spec:
       type: string
       description: Openshift client version
       default: "4.16"
+    - name: cloud-pak-deployer-image-build
+      type: string
+      description: If the image is to be built from repo
+      default: "false"
+    - name: cloud-pak-deployer-image-build-repo
+      type: string
+      description: The Git repository from which the image is to be built
+      default: "https://github.com/IBM/cloud-pak-deployer"
+    - name: cloud-pak-deployer-image-build-repo-ref
+      type: string
+      description: The ref from which the image is to be built
+      default: "main"
     - name: cloud-pak-deployer-image-address
       type: string
       description: The image address used for Cloud Pak Deployer run
@@ -1274,6 +1286,87 @@ spec:
                   # Set to false if you don't want to install (or remove) OpenSearch Dashboards
                   opensearch_dashboards_enabled: $(params.opensearch-dashboards-enabled)                  
             EOF
+    - name: build-image
+      runAfter:
+        - add-namespace
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      params:
+        - name: SCRIPT
+          value: |
+            if [[ $(params.cloud-pak-deployer-image-build) == "true" ]]; then
+              oc delete ImageStream cloud-pak-deployer -n $(params.namespace) --ignore-not-found
+              oc delete Build cloud-pak-deployer -n $(params.namespace) --ignore-not-found
+
+              sleep 20
+
+              oc apply -f - <<EOF
+              apiVersion: image.openshift.io/v1
+              kind: ImageStream
+              metadata:
+                name: cloud-pak-deployer
+                namespace: $(params.namespace)
+              spec:
+                lookupPolicy:
+                  local: true
+            EOF
+
+              oc apply -f - <<EOF
+              kind: Build
+              apiVersion: build.openshift.io/v1
+              metadata:
+                name: cloud-pak-deployer
+                namespace: $(params.namespace)
+              spec:
+                serviceAccount: builder
+                source:
+                  type: Git
+                  git:
+                    uri: '$(params.cloud-pak-deployer-image-build-repo)'
+                    ref: '$(params.cloud-pak-deployer-image-build-repo-ref)'
+                strategy:
+                  type: Docker
+                  dockerStrategy:
+                    buildArgs:
+                      - name: "CPD_OLM_UTILS_V1_IMAGE"
+                        value: "icr.io/cpopen/cpd/olm-utils:latest"
+                      - name: "CPD_OLM_UTILS_V2_IMAGE"
+                        value: "icr.io/cpopen/cpd/olm-utils-v2:latest"
+                      - name: "CPD_OLM_UTILS_V3_IMAGE"
+                        value: "icr.io/cpopen/cpd/olm-utils-v3:latest"
+                output:
+                  to:
+                    kind: ImageStreamTag
+                    name: 'cloud-pak-deployer:latest'
+                triggeredBy:
+                  - message: Manually triggered
+            EOF
+
+              sleep 20
+
+              while true
+              do
+                is_complete=$(oc get -n $(params.namespace) build/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Complete") | contains({"status": "'True'"})')
+                if [[ $is_complete != "true" ]]; then
+                  echo "Waiting for Build to be Complete. See cloud-pak-deployer Build logs in project $(params.namespace) for more details."
+                else
+                  echo "Cloud Pak Deployer Build is Complete."
+                  break
+                fi
+
+                did_fail=$(oc get -n $(params.namespace) build/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | contains({"status": "'True'"})')
+                if [[ $did_fail == "true" ]]; then
+                  echo "Cloud Pak Deployer Build failed."
+                  echo $(oc get -n $(params.namespace) build/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .reason')
+                  echo $(oc get -n $(params.namespace) build/cloud-pak-deployer -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .message')
+                  exit 68
+                fi
+                
+                sleep 60
+              done
+            fi
     - name: run-the-deployer
       taskRef:
         kind: Task
@@ -1286,6 +1379,7 @@ spec:
         - create-pvc
         - create-entitlement-key-secret
         - configure-cloud-paks-services
+        - build-image
       params:
         - name: SCRIPT
           value: |
