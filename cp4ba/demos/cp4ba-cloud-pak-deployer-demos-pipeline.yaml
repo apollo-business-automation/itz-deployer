@@ -935,6 +935,9 @@ spec:
                         periodSeconds: 10
                         successThreshold: 1
                         failureThreshold: 10
+                      env:
+                        - name: "JAVA_OPTS"
+                          value: "-Xms512m -Xmx1024m"
                       volumeMounts:
                         - name: connection-cm
                           mountPath: /home/cm
