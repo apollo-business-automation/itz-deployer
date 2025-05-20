@@ -1059,6 +1059,21 @@ spec:
                 requests:
                   storage: 10Gi
             EOF
+    - name: co-job-cleanup
+      when:
+        - input: $(params.co-deploy)
+          operator: in
+          values: ["true"]    
+      retries: 3
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      runAfter:
+        - add-namespace
+      params:
+        - name: SCRIPT
+          value: |
+            oc delete job client-onboarding-deploy -n $(params.cp4ba-project) --ignore-not-found
     - name: get-tz-ibm-entitlement-key
       retries: 3
       params:
