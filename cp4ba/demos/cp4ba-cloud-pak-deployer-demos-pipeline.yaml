@@ -1060,6 +1060,7 @@ spec:
                   storage: 10Gi
             EOF
     - name: co-job-cleanup
+      # Delete CO Job as preventive step if pipeline is re-run and previous attempt failed in co-job Task. If the job is not removed, da-pipeline-sync Task would fail before the Job is removed at the beginning of co-job Task
       when:
         - input: $(params.co-deploy)
           operator: in
@@ -1866,6 +1867,7 @@ spec:
                   echo "Client Onboarding job failed."
                   echo $(oc get -n $(params.cp4ba-project) job/client-onboarding-deploy -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .reason')
                   echo $(oc get -n $(params.cp4ba-project) job/client-onboarding-deploy -o yaml | yq '.status.conditions.[] | select(.type == "Failed") | .message')
+                  sleep 60 # Preventive sleep to allow CO Job to be restarted
                   exit 68
                 fi
 
