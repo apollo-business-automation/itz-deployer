@@ -18,6 +18,8 @@ spec:
       value: "cloud-pak-deployer"
     - name: cloud-pak-deployer-image-tag
       value: "latest"
+    - name: storage-class
+      value: "ocs-storagecluster-cephfs"      
     - name: co-deploy
       value: "true"
     - name: co-generated-users-password
