@@ -227,11 +227,6 @@ spec:
       description: |
         ADS GenAI API key?
       default: "<watsonx_ai_api_key>"
-    - name: ads-genai-auth-url
-      type: string
-      description: |
-        ADS GenAI authentication URL?
-      default: "https://iam.bluemix.net/identity/token"
     - name: ads-genai-ml-url
       type: string
       description: |
@@ -241,7 +236,7 @@ spec:
       type: string
       description: |
         ADS GenAI Project ID?
-      default: "<project_id>"      
+      default: "<project_id>"
     - name: content-enabled
       type: string
       description: |
@@ -406,6 +401,21 @@ spec:
           ]
         }
       default: "true"
+    - name: baw-genai-api-key
+      type: string
+      description: |
+        BAW GenAI API key?
+      default: "<watsonx_ai_api_key>"
+    - name: baw-genai-ml-url
+      type: string
+      description: |
+        BAW GenAI ML URL?
+      default: "https://us-south.ml.cloud.ibm.com"
+    - name: baw-genai-project-id
+      type: string
+      description: |
+        BAW GenAI Project ID?
+      default: "<project_id>"      
     - name: pm-enabled
       type: string
       description: |
@@ -1219,7 +1229,6 @@ spec:
                           ads_runtime: $(params.ads-runtime-enabled) # Runtime (ADS)
                         gen_ai: # https://www.ibm.com/docs/en/cloud-paks/cp-biz-automation/latest?topic=services-configuring-generative-ai-secret
                           apiKey: $(params.ads-genai-api-key)
-                          authUrl: $(params.ads-genai-auth-url)
                           mlUrl: $(params.ads-genai-ml-url)
                           projectId: $(params.ads-genai-project-id)                          
                       content: # FileNet Content Manager (FNCM) - https://www.ibm.com/docs/en/cloud-paks/cp-biz-automation/22.0.2?topic=deployment-capabilities-production-deployments#concept_c2l_1ks_fnb__ecm
@@ -1257,6 +1266,10 @@ spec:
                         optional_components:
                           baw_authoring: $(params.baw-authoring-enabled) # Workflow Authoring (BAW) - always keep true if workflow pattern is chosen. BAW Runtime is not implemented.
                           kafka: $(params.kafka-enabled) # Will install a kafka cluster and enable kafka service for workflow authoring.
+                        gen_ai: # https://www.ibm.com/docs/en/cloud-paks/cp-biz-automation/25.0.0?topic=customizing-enabling-generative-ai
+                          apiKey: $(params.baw-genai-api-key)
+                          mlUrl: $(params.baw-genai-ml-url)
+                          projectId: $(params.baw-genai-project-id)
 
                   # Section for IBM Process mining
                   pm:
@@ -1280,9 +1293,10 @@ spec:
                     # Contents of the following will be merged into RPA CR yaml file. Arrays are overwritten.
                     cr_custom:
                       spec:
-                        # Configures the NLP provider component of IBM RPA. You can disable it by specifying 0. https://www.ibm.com/docs/en/rpa/21.0?topic=platform-configuring-rpa-custom-resources#basic-setup
-                        nlp:
-                          replicas: 1
+                        # Configures the NLP provider component of IBM RPA. You can disable it by specifying 0. https://www.ibm.com/docs/en/rpa/latest?topic=platform-configuring-rpa-custom-resources#basic-setup
+                        sizeMapping:
+                          watson-nlp:
+                            replicas: 1
 
                   # Set to false if you don't want to install (or remove) CloudBeaver (PostgreSQL, DB2, MSSQL UI)
                   cloudbeaver_enabled: $(params.cloudbeaver-enabled)
