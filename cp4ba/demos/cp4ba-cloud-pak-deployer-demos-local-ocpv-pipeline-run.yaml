@@ -9,17 +9,17 @@ spec:
     name: cp4ba-cloud-pak-deployer-demos
   params:
     - name: cloud-pak-deployer-image-build
-      value: "false"
+      value: "true"
     - name: cloud-pak-deployer-image-build-repo
       value: "https://github.com/IBM/cloud-pak-deployer"
     - name: cloud-pak-deployer-image-build-repo-ref
-      value: "main"
+      value: "20250303"
     - name: cloud-pak-deployer-image-address
-      value: "quay.io/cloud-pak-deployer/cloud-pak-deployer"
+      value: "image-registry.openshift-image-registry.svc:5000/cloud-pak-deployer/cloud-pak-deployer"
     - name: cloud-pak-deployer-image-tag
       value: "latest"
     - name: storage-class
-      value: "ocs-storagecluster-cephfs"
+      value: "ocs-external-storagecluster-cephfs"
     - name: co-deploy
       value: "true"
     - name: co-generated-users-password

@@ -15,11 +15,11 @@ spec:
     - name: cloud-pak-deployer-image-build-repo-ref
       value: "20250303"
     - name: cloud-pak-deployer-image-address
-      value: "cloud-pak-deployer"
+      value: "image-registry.openshift-image-registry.svc:5000/cloud-pak-deployer/cloud-pak-deployer"
     - name: cloud-pak-deployer-image-tag
       value: "latest"
     - name: storage-class
-      value: "ocs-storagecluster-cephfs"      
+      value: "ocs-storagecluster-cephfs"
     - name: co-deploy
       value: "true"
     - name: co-generated-users-password
@@ -28,3 +28,15 @@ spec:
       value: "true"
     - name: cm-deploy
       value: "true"
+    - name: ads-genai-api-key
+      value: "<watsonx_ai_api_key>"
+    - name: ads-genai-ml-url
+      value: "https://us-south.ml.cloud.ibm.com"
+    - name: ads-genai-project-id
+      value: "<project_id>"
+    - name: baw-genai-api-key
+      value: "<watsonx_ai_api_key>"
+    - name: baw-genai-ml-url
+      value: "https://us-south.ml.cloud.ibm.com"
+    - name: baw-genai-project-id
+      value: "<project_id>"
