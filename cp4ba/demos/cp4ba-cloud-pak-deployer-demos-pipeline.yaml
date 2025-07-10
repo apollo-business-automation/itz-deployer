@@ -226,7 +226,7 @@ spec:
       type: string
       description: |
         ADS GenAI API key?
-      default: "<watsonx_ai_api_key>"
+      default: "watsonx_ai_api_key"
     - name: ads-genai-ml-url
       type: string
       description: |
@@ -236,7 +236,7 @@ spec:
       type: string
       description: |
         ADS GenAI Project ID?
-      default: "<project_id>"
+      default: "project_id"
     - name: content-enabled
       type: string
       description: |
@@ -405,7 +405,7 @@ spec:
       type: string
       description: |
         BAW GenAI API key?
-      default: "<watsonx_ai_api_key>"
+      default: "watsonx_ai_api_key"
     - name: baw-genai-ml-url
       type: string
       description: |
@@ -415,7 +415,7 @@ spec:
       type: string
       description: |
         BAW GenAI Project ID?
-      default: "<project_id>"      
+      default: "project_id"      
     - name: pm-enabled
       type: string
       description: |
