@@ -29,14 +29,14 @@ spec:
     - name: cm-deploy
       value: "true"
     - name: ads-genai-api-key
-      value: "<watsonx_ai_api_key>"
+      value: "watsonx_ai_api_key"
     - name: ads-genai-ml-url
       value: "https://us-south.ml.cloud.ibm.com"
     - name: ads-genai-project-id
-      value: "<project_id>"
+      value: "project_id"
     - name: baw-genai-api-key
-      value: "<watsonx_ai_api_key>"
+      value: "watsonx_ai_api_key"
     - name: baw-genai-ml-url
       value: "https://us-south.ml.cloud.ibm.com"
     - name: baw-genai-project-id
-      value: "<project_id>"
+      value: "project_id"
