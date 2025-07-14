@@ -40,3 +40,5 @@ spec:
       value: "https://us-south.ml.cloud.ibm.com"
     - name: baw-genai-project-id
       value: "project_id"
+    - name: baw-genai-default-foundation-model
+      value: "meta-llama/llama-3-3-70b-instruct"
