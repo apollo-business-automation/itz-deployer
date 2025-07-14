@@ -415,7 +415,12 @@ spec:
       type: string
       description: |
         BAW GenAI Project ID?
-      default: "project_id"      
+      default: "project_id"
+    - name: baw-genai-default-foundation-model
+      type: string
+      description: |
+        BAW GenAI Foundation Model?
+      default: "meta-llama/llama-3-3-70b-instruct"
     - name: pm-enabled
       type: string
       description: |
@@ -1270,6 +1275,7 @@ spec:
                           apiKey: $(params.baw-genai-api-key)
                           mlUrl: $(params.baw-genai-ml-url)
                           projectId: $(params.baw-genai-project-id)
+                          defaultFoundationModel: $(params.baw-genai-default-foundation-model)
 
                   # Section for IBM Process mining
                   pm:
