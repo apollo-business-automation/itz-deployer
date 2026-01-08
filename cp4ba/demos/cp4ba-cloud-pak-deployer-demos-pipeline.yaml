@@ -432,6 +432,17 @@ spec:
           ]
         }
       default: "true"
+    - name: bamoe-enabled
+      type: string
+      description: |
+        BAMOE enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
     - name: rpa-enabled
       type: string
       description: |
@@ -1303,6 +1314,11 @@ spec:
                         sizeMapping:
                           watson-nlp:
                             replicas: 1
+
+                  # Section for IBM Business Automation Manager Open Editions
+                  bamoe:
+                    # Set to false if you don't want to install (or remove) BAMOE
+                    enabled: $(params.bamoe-enabled)
 
                   # Set to false if you don't want to install (or remove) CloudBeaver (PostgreSQL, DB2, MSSQL UI)
                   cloudbeaver_enabled: $(params.cloudbeaver-enabled)

@@ -42,3 +42,7 @@ spec:
       value: "project_id"
     - name: baw-genai-default-foundation-model
       value: "meta-llama/llama-3-3-70b-instruct"
+    - name: document-processing-enabled
+      value: "true"
+    - name: document-processing-designer-enabled
+      value: "true"
