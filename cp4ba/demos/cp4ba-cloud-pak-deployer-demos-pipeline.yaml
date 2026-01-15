@@ -401,6 +401,28 @@ spec:
           ]
         }
       default: "true"
+    - name: workflow-assistant-enabled
+      type: string
+      description: |
+        Workflow assistant Optional Component of Business Automation Workflow Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: workplace-assistant-enabled
+      type: string
+      description: |
+        Workplace assistant Optional Component of Business Automation Workflow Pattern enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
     - name: baw-genai-api-key
       type: string
       description: |
@@ -1282,6 +1304,8 @@ spec:
                         optional_components:
                           baw_authoring: $(params.baw-authoring-enabled) # Workflow Authoring (BAW) - always keep true if workflow pattern is chosen. BAW Runtime is not implemented.
                           kafka: $(params.kafka-enabled) # Will install a kafka cluster and enable kafka service for workflow authoring.
+                          workflow_assistant: $(params.workflow-assistant-enabled) # Will enable Authoring assistant for workflow authoring.
+                          workplace_assistant: $(params.workplace-assistant-enabled) # Will enable Workplace assistant.   
                         gen_ai: # https://www.ibm.com/docs/en/cloud-paks/cp-biz-automation/25.0.0?topic=customizing-enabling-generative-ai
                           apiKey: $(params.baw-genai-api-key)
                           mlUrl: $(params.baw-genai-ml-url)
