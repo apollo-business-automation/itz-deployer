@@ -3,6 +3,7 @@ apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
   name: cp4ba-cloud-pak-deployer-demos
+  namespace: default
 spec:
   params:
     - name: namespace
@@ -454,17 +455,6 @@ spec:
           ]
         }
       default: "true"
-    - name: bamoe-enabled
-      type: string
-      description: |
-        BAMOE enabled?
-        {
-          "options": [
-            {"text": "true","value": "true", "default": "true"},
-            {"text": "false","value": "false" }
-          ]
-        }
-      default: "true"
     - name: rpa-enabled
       type: string
       description: |
@@ -476,6 +466,38 @@ spec:
           ]
         }
       default: "true"
+    - name: bamoe-enabled
+      type: string
+      description: |
+        BAMOE enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: ica-enabled
+      type: string
+      description: |
+        ICA enabled?
+        {
+          "options": [
+            {"text": "true","value": "true", "default": "true"},
+            {"text": "false","value": "false" }
+          ]
+        }
+      default: "true"
+    - name: ica-genai-api-key
+      type: string
+      description: |
+        ICA GenAI Space ID?
+      default: "watsonx_ai_api_key"
+    - name: ica-genai-space-id
+      type: string
+      description: |
+        ICA GenAI Space ID?
+      default: "space_id"
     - name: cloudbeaver-enabled
       type: string
       description: |
@@ -1343,6 +1365,14 @@ spec:
                   bamoe:
                     # Set to false if you don't want to install (or remove) BAMOE
                     enabled: $(params.bamoe-enabled)
+
+                  # Section for IBM Content Assistant
+                  ica:
+                    # Set to false if you don't want to install (or remove) ICA
+                    enabled: $(params.ica-enabled)
+                    gen_ai:
+                      apiKey: $(params.ica-genai-api-key)
+                      spaceId: $(params.ica-genai-space-id)
 
                   # Set to false if you don't want to install (or remove) CloudBeaver (PostgreSQL, DB2, MSSQL UI)
                   cloudbeaver_enabled: $(params.cloudbeaver-enabled)

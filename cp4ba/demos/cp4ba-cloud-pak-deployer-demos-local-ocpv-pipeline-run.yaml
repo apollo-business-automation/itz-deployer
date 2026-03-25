@@ -41,4 +41,12 @@ spec:
     - name: baw-genai-project-id
       value: "project_id"
     - name: baw-genai-default-foundation-model
-      value: "meta-llama/llama-3-3-70b-instruct"      
+      value: "meta-llama/llama-3-3-70b-instruct"     
+    - name: document-processing-enabled
+      value: "true"
+    - name: document-processing-designer-enabled
+      value: "true"
+    - name: ica-genai-space-id
+      value: "space_id"
+    - name: ica-genai-api-key
+      value: "watsonx_ai_api_key"
